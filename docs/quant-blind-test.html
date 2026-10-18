@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>量化版本盲评</title>
+<style>
+  /* 一栏阅读：每条一张卡片，原文在上，A、B 两个译文并排（窄屏上下排），选项在下 */
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --panel: #edf0f5; --fg: #18202c; --muted: #5a6375; --line: #c5ccd8;
+    --accent: #2753c8; --accent-soft: #e5ecfb; --pick: #0f766e;
+    --font: -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f131a; --surface: #171c25; --panel: #131821; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c;
+      --accent: #86a5ff; --accent-soft: #1c2742; --pick: #5eead4; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--font); }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 16px 80px; display: grid; gap: 24px; }
+  h1 { margin: 0; font-size: 26px; }
+  .lead { margin: 6px 0 0; color: var(--muted); max-width: 720px; }
+  .bar { position: sticky; top: 0; z-index: 1; display: flex; gap: 16px; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .bar strong { font-variant-numeric: tabular-nums; }
+  button { font: inherit; border-radius: 8px; padding: 7px 16px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .item { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; }
+  .meta { display: flex; gap: 10px; align-items: baseline; color: var(--muted); font-size: 13px; }
+  .tag { background: var(--panel); border-radius: 999px; padding: 0 10px; font-size: 12px; }
+  .source { font-family: var(--serif); font-size: 16px; margin: 0; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cand { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); min-width: 0; }
+  .cand.chosen { border-color: var(--pick); box-shadow: inset 0 0 0 1px var(--pick); }
+  .cand h3 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .cand h3 .who { color: var(--accent); margin-left: 6px; }
+  .cand p { margin: 0; word-break: break-word; }
+  .choices { display: flex; gap: 18px; flex-wrap: wrap; }
+  .choices label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  #reveal-section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; }
+  #reveal-section h2 { margin: 0; font-size: 20px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .table-wrap { overflow-x: auto; }
+  .note { color: var(--muted); font-size: 13px; margin: 0; }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } .bar { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>量化版本盲评</h1>
+    <p class="lead">同一个 Index-Translate-2B 模型的两个量化版本（Q8_0、Q4_K_M）分别翻译了下面这些真实网页段落。每条随机标成 A、B，选更好的一个，分不出就选「差不多」。全部选完后点「揭晓」，再看哪个是哪个，以及两边的速度。选择只保存在这个浏览器里。</p>
+  </header>
+  <div class="bar"><span>已选 <strong id="done">0</strong> / <strong id="total">0</strong></span><button id="reveal" type="button" disabled>揭晓</button></div>
+  <div id="items"></div>
+  <section id="reveal-section" hidden>
+    <h2>结果</h2>
+    <div class="table-wrap"><table id="tally"></table></div>
+    <div class="table-wrap"><table id="speed"></table></div>
+    <p class="note" id="notes"></p>
+  </section>
+</main>
+<script>
+  const DATA = {"items":[{"id":1,"kind":"段落","source":"You can use the “Copy” button (it appears in the upper-right corner when hovering over or tapping a code example), which strips prompts and omits output, to copy and paste the input lines into your interpreter.","a":"您可以使用“复制”按钮（当悬停或点击代码示例时，该按钮会出现在右上角），该按钮会移除提示并省略输出，以便您将输入行复制并粘贴到您的解释器中。","b":"您可以使用“复制”按钮（在悬停或点击代码示例时，该按钮会出现在右上角），该按钮会移除提示并省略输出，以便将输入行复制并粘贴到您的解释器中。","aIs":"Q4_K_M"},{"id":2,"kind":"段落","source":"Hugging Face offers two distinct SSO models, each designed for different organizational needs. Understanding the differences between these two approaches is key to choosing the right setup for your team.","a":"Hugging Face 提供两种不同的 SSO 模型，每种模型都针对不同的组织需求而设计。了解这两种方法之间的差异，对于为您的团队选择合适设置至关重要。","b":"Hugging Face 提供两种不同的 SSO 模型，每种模型都针对不同的组织需求而设计。了解这两种方法之间的差异，对于为您的团队选择合适的设置至关重要。","aIs":"Q8_0"},{"id":3,"kind":"段落","source":"The French Textile Institute also used MT to translate abstracts from and into French, English, German and Spanish (1970); Brigham Young University started a project to translate Mormon texts by automated translation (1971).","a":"法国纺织研究所也利用机器翻译将摘要从法语、英语、德语和西班牙语翻译为法语、英语、德语和西班牙语（1970年）； Brigham Young 大学则启动了一个通过自动化翻译来翻译摩门教文本的项目（1971年）。","b":"法国纺织研究所也利用机器翻译（MT）将摘要从法语、英语、德语和西班牙语翻译为法语、英语、德语和西班牙语（1970年）；布莱默恩大学则启动了一个通过自动翻译来翻译摩门教文本的项目（1971年）。","aIs":"Q4_K_M"},{"id":4,"kind":"段落","source":"Training a GPT-4 beating model was a huge deal in 2023. In 2024 it’s an achievement that isn’t even particularly notable, though I personally still celebrate any time a new organization joins that list.","a":"在2023年，训练出能击败GPT-4的模型是一项重大成就。到了2024年，这已经不是什么特别值得注意的事了，不过我个人仍然会庆祝任何新组织加入这个名单。","b":"在2023年，训练出能击败GPT-4的模型是一项重大成就。到了2024年，这已经不再是一项特别值得关注的成就，不过我个人仍然会为任何新组织加入这个名单而庆祝。","aIs":"Q4_K_M"},{"id":5,"kind":"段落","source":"James Lewis is a Principal Consultant at Thoughtworks and member of the Technology Advisory Board. James' interest in building applications out of small collaborating services stems from a background in integrating enterprise systems at scale. He's built a number of systems using microservices and has been an active participant in the growing community for a couple of years.","a":"James Lewis 是 Thoughtworks 的首席顾问，也是技术顾问委员会的成员。James 从小规模协作服务构建应用程序的兴趣源于他之前大规模集成企业系统的背景。他已使用微服务构建了多个系统，并过去几年一直积极参与这个不断发展的社区。","b":"James Lewis 是 Thoughtworks 的首席顾问，也是技术顾问委员会的成员。James 从小规模协作服务构建应用程序的兴趣源于他在大规模企业系统集成方面的背景。他已使用微服务构建了多个系统，并已成为该增长迅速社区的积极参与者。","aIs":"Q4_K_M"},{"id":6,"kind":"段落","source":"This variable should be treated as read-only by the user. Don’t explicitly assign a value to it — you would create an independent local variable with the same name masking the built-in variable with its magic behavior.","a":"用户应将该变量视为只读变量。不要显式地为其赋值，否则你会创建一个同名独立局部变量，这会覆盖内置变量的特殊行为。","b":"用户应将该变量视为只读。不要显式地为其赋值——这样会创建一个同名但独立的局部变量，从而覆盖内置变量的特殊行为。","aIs":"Q4_K_M"},{"id":7,"kind":"段落","source":"There are many factors that affect how machine translation systems are evaluated. These factors include the intended use of the translation, the nature of the machine translation software, and the nature of the translation process.","a":"影响机器翻译系统评估的因素有很多。这些因素包括翻译的 intended 用途、机器翻译软件的性质以及翻译过程的特点。","b":"影响机器翻译系统评估方式的因素有很多。这些因素包括翻译的 intended 用途、机器翻译软件的性质以及翻译过程的特点。","aIs":"Q4_K_M"},{"id":8,"kind":"段落","source":"This remains astonishing to me. I thought a model with the capabilities and output quality of GPT-4 needed a datacenter class server with one or more $40,000+ GPUs.","a":"这对我来说仍然令人惊讶。我本以为，一个具备 GPT-4 那样的能力和输出质量的模型，需要一台数据中心级别的服务器，并配备一台或多台 40,000 美元以上的 GPU。","b":"这对我来说仍然令人惊讶。我本以为，一个具备 GPT-4 那样的能力和输出质量的模型，需要一台数据中心级别的服务器，配备一台或多台 40,000 美元以上的 GPU。","aIs":"Q4_K_M"},{"id":9,"kind":"段落","source":"Martin Fowler is an author, speaker, and general loud-mouth on software development. He's long been puzzled by the problem of how to componentize software systems, having heard more vague claims than he's happy with. He hopes that microservices will live up to the early promise its advocates have found.","a":"马丁·法勒（Martin Fowler）是一位作家、演讲者，也是软件开发领域的知名发声者。他长期以来对如何组件化软件系统这一问题感到困惑，并曾听到许多令他不太满意的模糊说法。他希望微服务能够兑现其倡导者最初所做出的承诺。","b":"马丁·法尔（Martin Fowler）是一位作家、演讲者，也是软件开发领域的知名发声者。他长期以来对如何对软件系统进行组件化这一问题感到困惑，因为他曾听到许多模糊不清的说法，而这些说法并不令他满意。他希望微服务能够兑现其早期倡导者的承诺。","aIs":"Q4_K_M"},{"id":10,"kind":"段落","source":"Slice indices have useful defaults; an omitted first index defaults to zero, an omitted second index defaults to the size of the string being sliced.","a":"切片索引有实用的默认值；省略的第一个索引默认为零，省略的第二个索引默认为被切片字符串的大小。","b":"切片索引具有有用的默认值；省略的第一个索引默认为零，省略的第二个索引默认为被切片字符串的大小。","aIs":"Q4_K_M"},{"id":11,"kind":"段落","source":"These models take up enough of my 64GB of RAM that I don’t run them often—they don’t leave much room for anything else.","a":"这些模型占用了我64GB的内存空间，所以我很少运行它们——它们几乎不给我留下其他东西运行的余地。","b":"这些模型占用了我64GB的内存空间，所以我很少运行它们——它们几乎不给我留下运行其他东西的空间。","aIs":"Q8_0"},{"id":12,"kind":"段落","source":"These frustrations have led to the microservice architectural style: building applications as suites of services. As well as the fact that services are independently deployable and scalable, each service also provides a firm module boundary, even allowing for different services to be written in different programming languages. They can also be managed by different teams .","a":"这些不满情绪促成了微服务架构风格：将应用程序构建为一系列服务。除了服务可以独立部署和扩展外，每个服务还提供了一个明确的模块边界，甚至允许不同的服务使用不同的编程语言编写。它们还可以由不同的团队进行管理。","b":"这些挫败感促成了微服务架构风格：将应用程序构建为一系列服务套件。除了服务可以独立部署和扩展外，每个服务还提供了一个明确的模块边界，甚至允许不同的服务使用不同的编程语言编写。它们还可以由不同的团队进行管理。","aIs":"Q4_K_M"},{"id":13,"kind":"段落","source":"The past twelve months have seen a dramatic collapse in the cost of running a prompt through the top tier hosted LLMs.","a":"过去十二个月，通过顶级托管大语言模型运行提示词的成本发生了急剧下降。","b":"过去十二个月，通过顶级托管大语言模型运行提示词的成本发生了显著下降。","aIs":"Q8_0"},{"id":14,"kind":"段落","source":"We do not claim that the microservice style is novel or innovative, its roots go back at least to the design principles of Unix. But we do think that not enough people consider a microservice architecture and that many software developments would be better off if they used it.","a":"我们并不声称微服务模式是新颖或创新的，其根源至少可以追溯到 Unix 的设计原则。但我们认为，目前仍有许多人没有考虑使用微服务架构，如果大多数软件开发采用这种架构，将会更好。","b":"我们并不声称微服务模式是新颖或创新的，其根源至少可以追溯到 Unix 的设计原则。但我们认为，目前仍有许多人没有考虑采用微服务架构，如果大多数软件开发都使用这种架构，将会更好。","aIs":"Q4_K_M"},{"id":15,"kind":"段落","source":"The first line contains a multiple assignment: the variables a and b simultaneously get the new values 0 and 1. On the last line this is used again, demonstrating that the expressions on the right-hand side are all evaluated first before any of the assignments take place. The right-hand side expressions are evaluated from the left to the right.","a":"第一行包含多重赋值操作：变量 a 和 b 同时获得新的值 0 和 1。最后一行再次使用了这些值，这表明右侧的表达式在赋值操作发生之前都会先被评估。右侧的表达式从左到右进行评估。","b":"第一行包含多重赋值操作：变量 a 和 b 同时获得新的值 0 和 1。最后一行再次使用这些值，这表明右侧的表达式在赋值操作发生之前都会先被评估。右侧的表达式从左到右进行评估。","aIs":"Q4_K_M"},{"id":16,"kind":"段落","source":"Other model providers charge even less. Anthropic’s Claude 3 Haiku (from March, but still their cheapest model) is $0.25/mTok. Google’s Gemini 1.5 Flash is $0.075/mTok and their Gemini 1.5 Flash 8B is $0.0375/mTok—that’s 27x cheaper than GPT-3.5 Turbo last year.","a":"其他模型提供商的收费甚至更低。Anthropic 的 Claude 3 Haiku（自三月起提供，但仍是他们最便宜的模型）收费为 0.25 美元/百万 token。Google 的 Gemini 1.5 Flash 收费为 0.075 美元/百万 token，而 Gemini 1.5 Flash 8B 的收费为 0.0375 美元/百万 token——这比去年 GPT-3.5 Turbo 便宜了 27 倍。","b":"其他模型提供商的收费甚至更低。Anthropic 的 Claude 3 Haiku（发布于三月，但仍是他们最便宜的模型）费用为 0.25 美元/百万 token。Google 的 Gemini 1.5 Flash 费用为 0.075 美元/百万 token，而他们的 Gemini 1.5 Flash 8B 费用为 0.0375 美元/百万 token——这比去年 GPT-3.5 Turbo 便宜了 27 倍。","aIs":"Q4_K_M"},{"id":17,"kind":"段落","source":"For as long as we've been involved in the software industry, there's been a desire to build systems by plugging together components, much in the way we see things are made in the physical world. During the last couple of decades we've seen considerable progress with large compendiums of common libraries that are part of most language platforms.","a":"自我们进入软件行业以来，一直存在通过组合组件来构建系统的愿望，这与我们在现实世界中制造事物的方式非常相似。在过去几十年里，我们见证了大量常用库的合集取得了显著进展，这些库构成了大多数语言平台的一部分。","b":"自我们进入软件行业以来，一直存在一种通过拼接组件来构建系统的愿望，这与我们在物理世界中制造物品的方式非常相似。在过去几十年里，我们见证了大量常见库的合集取得了显著进展，这些库已成为大多数语言平台的一部分。","aIs":"Q4_K_M"},{"id":18,"kind":"段落","source":"There’s still plenty to worry about with respect to the environmental impact of the great AI datacenter buildout, but a lot of the concerns over the energy cost of individual prompts are no longer credible.","a":"关于大规模人工智能数据中心建设的环境影响，仍然有很多值得担忧的地方，但此前对单个提示词能耗的许多担忧已不再具有可信性。","b":"关于大型人工智能数据中心扩张对环境的影响，仍然有很多值得担忧的地方，但此前对单个提示词能耗的许多担忧已不再具有可信性。","aIs":"Q8_0"},{"id":19,"kind":"带格式段落","source":"In the following examples, input and output are distinguished by the presence or absence of prompts (>>> and …): to repeat the example, you must type everything after the prompt, when the prompt appears; lines that do not begin with a prompt are output from the interpreter. Note that a secondary prompt on a line by itself in an example means you must type a blank line; this is used to end a multi-line command.","a":"在以下示例中，输入和输出通过提示符（>>> 和 …）的存在与否来区分：要重复示例，必须在提示符出现时输入所有后续内容；未以提示符开头的行将由解释器输出。请注意，如果示例中某行单独出现一个次要提示符，则表示您必须输入一个空白行；这用于结束多行命令。","b":"在以下示例中，输入和输出通过提示符（>>> 和 …）的存在与否来区分：要重复示例，必须在提示符出现时输入提示符后的所有内容；不以提示符开头的行将由解释器输出。请注意，如果一个示例中单独出现一个次要提示符，则表示您必须输入一个空行；这用于结束多行命令。","aIs":"Q8_0"},{"id":20,"kind":"带格式段落","source":"Basic SSO adds an access-control layer on top of the standard Hugging Face login. It does not replace the Hugging Face login — members keep their existing credentials and are prompted to complete SSO only when accessing your organization’s resources.","a":"基础 SSO 在标准的 Hugging Face 登录之上增加了一层访问控制。它不会取代 Hugging Face 的登录方式——成员可以继续使用其现有凭据，只有在访问您组织的资源时，系统才会提示他们完成 SSO 流程。","b":"基础 SSO 在标准的 Hugging Face 登录之上增加了一层访问控制。它不会取代 Hugging Face 登录——成员可以继续使用其现有凭据，只有在访问您组织的资源时，系统才会提示他们完成 SSO 流程。","aIs":"Q4_K_M"},{"id":21,"kind":"带格式段落","source":"Machine translation is the use of computational techniques to translate text or speech from one language to another, including the contextual, idiomatic, and pragmatic nuances of both languages.","a":"机器翻译是指利用计算技术将文本或语音从一种语言翻译成另一种语言，其中包括两种语言之间的语境、习语和语用细微差别。","b":"机器翻译是指使用计算技术将文本或语音从一种语言翻译成另一种语言，其中包括两种语言之间的语境、习语和语用细微差别。","aIs":"Q8_0"},{"id":22,"kind":"带格式段落","source":"A lot has happened in the world of Large Language Models over the course of 2024. Here’s a review of things we figured out about the field in the past twelve months, plus my attempt at identifying key themes and pivotal moments.","a":"2024 年，大型语言模型领域发生了不少大事。以下是过去十二个月里我们关于该领域的一些发现，以及我试图识别的关键主题和重要时刻。","b":"2024 年，大型语言模型领域发生了一大波变化。以下是过去十二个月我们对该领域的一些认识总结，以及我试图识别的关键主题和重要时刻。","aIs":"Q4_K_M"},{"id":23,"kind":"带格式段落","source":"The term “Microservice Architecture” has sprung up over the last few years to describe a particular way of designing software applications as suites of independently deployable services. While there is no precise definition of this architectural style, there are certain common characteristics around organization around business capability, automated deployment, intelligence in the endpoints, and decentralized control of languages and data.","a":" 过去几年里，“微服务架构”这一术语逐渐出现，用于描述一种将软件应用设计为可独立部署的服务集的特殊方法。虽然这种架构风格没有精确的定义，但它在组织方式、业务能力、自动化部署、端点智能以及语言和数据的去中心化控制方面存在一些共同特征。","b":" 过去几年里，“微服务架构”这一术语逐渐出现，用于描述一种将软件应用设计为可独立部署的服务集的特殊方法。虽然这种架构风格没有明确的定义，但它在组织方式、业务能力、自动化部署、端点智能以及语言和数据的去中心化控制方面存在一些共同特征。","aIs":"Q8_0"},{"id":24,"kind":"带格式段落","source":"The integer numbers (e.g. 2, 4, 20) have type int, the ones with a fractional part (e.g. 5.0, 1.6) have type float. We will see more about numeric types later in the tutorial.","a":"整数（例如 ▢、▢、▢）的类型是 ▢，带小数部分的类型（例如 ▢、▢）是 ▢。教程后面我们会更详细地介绍数值类型。","b":"整数（例如 ▢、▢、▢）的类型是 ▢，带小数部分的类型（例如 ▢、▢）是 ▢。教程中稍后我们会更详细地介绍数值类型。","aIs":"Q8_0"},{"id":25,"kind":"带格式段落","source":"This is well suited for teams that want to secure access to their organizational resources while preserving the flexibility of individual Hugging Face accounts. Setup is self-service from your organization’s settings.","a":"这种方式非常适合那些希望在保留个人 Hugging Face 账户灵活性的同时，确保其组织资源可访问的团队。设置功能可由您组织自行操作。","b":"这种方式非常适合那些希望在保留个人 Hugging Face 账户灵活性的同时，确保访问组织资源的团队。设置功能可由组织内部自行操作。","aIs":"Q4_K_M"},{"id":26,"kind":"带格式段落","source":"Before the advent of deep learning methods, statistical methods required a lot of rules accompanied by morphological, syntactic, and semantic annotations.","a":"在深度学习方法出现之前，统计方法需要大量规则，并伴有形态学、句法和语义注释。","b":"在深度学习方法出现之前，统计方法需要大量规则，并伴有形态学、句法和语义标注。","aIs":"Q8_0"},{"id":27,"kind":"带格式段落","source":"In my December 2023 review I wrote about how We don’t yet know how to build GPT-4—OpenAI’s best model was almost a year old at that point, yet no other AI lab had produced anything better. What did OpenAI know that the rest of us didn’t?","a":"在 2023 年 12 月的评测中，我写道：我们目前还不知道如何构建 GPT-4——当时 OpenAI 的最佳模型已经快一年了，但其他任何 AI 实验室都尚未推出任何更出色的产品。OpenAI 到底知道什么，而我们其他人却一无所知呢？","b":"在 2023 年 12 月的评测中，我写道：我们目前还不知道如何构建 GPT-4——当时 OpenAI 的最佳模型已经快一年了，但其他任何 AI 实验室都尚未推出任何更出色的产品。OpenAI 到底知道什么，而我们其他人却不知道呢？","aIs":"Q4_K_M"},{"id":28,"kind":"带格式段落","source":"When talking about components we run into the difficult definition of what makes a component. Our definition is that a component is a unit of software that is independently replaceable and upgradeable.","a":"在讨论组件时，我们会遇到一个难以界定的问题：什么构成一个组件？我们的定义是，组件是一个可以独立替换和升级的软件单元。","b":"在讨论组件时，我们会遇到一个难以界定的问题：什么构成一个组件？我们的定义是，一个组件是一个可以独立替换和升级的软件单元。","aIs":"Q8_0"},{"id":29,"kind":"短句","source":"Things we learned about LLMs in 2024","a":"2024年关于LLM的学习成果","b":"2024年关于LLMs的收获","aIs":"Q8_0"},{"id":30,"kind":"短句","source":"Basic SSO","a":"基础SSO","b":"基础单点登录","aIs":"Q4_K_M"},{"id":31,"kind":"短句","source":"Some of those GPT-4 models run on my laptop","a":"其中一些 GPT-4 模型在我的笔记本电脑上运行。","b":"其中一些 GPT-4 模型运行在我的笔记本电脑上。","aIs":"Q4_K_M"},{"id":32,"kind":"短句","source":"LLM prices crashed, thanks to competition and increased efficiency","a":"得益于竞争加剧和效率提升，LLM价格暴跌。","b":"由于竞争加剧和效率提升，LLM价格暴跌。","aIs":"Q8_0"}],"summary":{"samples":50,"byKind":{"段落":20,"带格式段落":10,"短句":20},"identical":18,"markupTotal":10,"speed":{"Q8_0":{"avgMs":390,"avgTps":94,"parallelSeconds":4.3,"parallelTps":206,"markupKept":9},"Q4_K_M":{"avgMs":303,"avgTps":123,"parallelSeconds":4.1,"parallelTps":216,"markupKept":9}}}};
+  const KEY = "ait-quant-blind";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } };
+  const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} };
+  const answers = load();
+  const itemsEl = document.getElementById("items");
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  itemsEl.innerHTML = DATA.items.map((it) => `
+    <article class="item" data-id="${it.id}">
+      <div class="meta"><span>#${it.id}</span><span class="tag">${esc(it.kind)}</span></div>
+      <p class="source" lang="en">${esc(it.source)}</p>
+      <div class="pair">
+        <div class="cand" data-side="a"><h3>A<span class="who" hidden></span></h3><p>${esc(it.a)}</p></div>
+        <div class="cand" data-side="b"><h3>B<span class="who" hidden></span></h3><p>${esc(it.b)}</p></div>
+      </div>
+      <div class="choices" role="radiogroup" aria-label="第 ${it.id} 条哪个更好">
+        <label><input type="radio" name="q${it.id}" id="q${it.id}-a" value="a"> A 更好</label>
+        <label><input type="radio" name="q${it.id}" id="q${it.id}-same" value="same"> 差不多</label>
+        <label><input type="radio" name="q${it.id}" id="q${it.id}-b" value="b"> B 更好</label>
+      </div>
+    </article>`).join("");
+
+  function refresh() {
+    let done = 0;
+    for (const it of DATA.items) {
+      const v = answers[it.id];
+      if (v) done++;
+      const card = itemsEl.querySelector(`[data-id="${it.id}"]`);
+      card.querySelector('[data-side="a"]').classList.toggle("chosen", v === "a");
+      card.querySelector('[data-side="b"]').classList.toggle("chosen", v === "b");
+      if (v) card.querySelector(`#q${it.id}-${v}`).checked = true;
+    }
+    document.getElementById("done").textContent = done;
+    document.getElementById("total").textContent = DATA.items.length;
+    document.getElementById("reveal").disabled = done < DATA.items.length;
+  }
+
+  itemsEl.addEventListener("change", (e) => {
+    const input = e.target;
+    answers[input.name.slice(1)] = input.value;
+    save(answers);
+    refresh();
+  });
+
+  document.getElementById("reveal").addEventListener("click", () => {
+    const win = { "Q8_0": 0, "Q4_K_M": 0, same: 0 };
+    for (const it of DATA.items) {
+      const v = answers[it.id];
+      const bIs = it.aIs === "Q8_0" ? "Q4_K_M" : "Q8_0";
+      if (v === "same") win.same++;
+      else win[v === "a" ? it.aIs : bIs]++;
+      const card = itemsEl.querySelector(`[data-id="${it.id}"]`);
+      for (const [side, who] of [["a", it.aIs], ["b", bIs]]) {
+        const tag = card.querySelector(`[data-side="${side}"] .who`);
+        tag.textContent = who;
+        tag.hidden = false;
+      }
+    }
+    const s = DATA.summary;
+    document.getElementById("tally").innerHTML = `
+      <tr><th>盲评</th><th>条数</th></tr>
+      <tr><td>Q8_0 更好</td><td>${win["Q8_0"]}</td></tr>
+      <tr><td>Q4_K_M 更好</td><td>${win["Q4_K_M"]}</td></tr>
+      <tr><td>差不多</td><td>${win.same}</td></tr>
+      <tr><td>两边译文完全相同（未参与盲评）</td><td>${s.identical}</td></tr>`;
+    const row = (k) => `<tr><td>${k}</td><td>${s.speed[k].avgMs} 毫秒</td><td>${s.speed[k].avgTps}</td><td>${s.speed[k].parallelSeconds} 秒 / ${s.speed[k].parallelTps}</td><td>${s.speed[k].markupKept}/${s.markupTotal}</td></tr>`;
+    document.getElementById("speed").innerHTML = `
+      <tr><th>版本</th><th>单条平均耗时</th><th>生成速度（token/秒）</th><th>4 路并行翻完 ${s.byKind["段落"]} 段（耗时 / token/秒）</th><th>保住格式</th></tr>${row("Q8_0")}${row("Q4_K_M")}`;
+    document.getElementById("notes").textContent = `样例 ${s.samples} 条：${Object.entries(s.byKind).map(([k, v]) => `${k} ${v}`).join("、")}。按施工清单的约定，两边差距不明显时选更快的 Q4_K_M，另一个留作可选配置。把结果告诉 Claude 即可。`;
+    document.getElementById("reveal-section").hidden = false;
+    document.getElementById("reveal-section").scrollIntoView({ behavior: "smooth" });
+  });
+
+  refresh();
+</script>
+</body>
+</html>

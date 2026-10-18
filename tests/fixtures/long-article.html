@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long article</title>
+<style>
+  body { font: 18px/1.6 Georgia, serif; margin: 0 auto; max-width: 640px; padding: 24px; }
+  p { margin: 0 0 24px; }
+</style>
+</head>
+<body>
+<nav id="nav"><ul><li><a href="#">Home link</a></li><li><a href="#">About this site</a></li></ul></nav>
+<article id="article">
+  <h1 id="title">A long article about local translation</h1>
+</article>
+<footer id="footer"><p>Copyright notice for this demo page</p></footer>
+<script>
+  // 60 段英文，第 10 段前插一个代码块，第 12 段前插一段中文
+  const article = document.getElementById("article");
+  const words = "local models translate text quickly while keeping every sentence on your own machine".split(" ");
+  for (let i = 1; i <= 60; i++) {
+    if (i === 10) {
+      const pre = document.createElement("pre");
+      pre.id = "code";
+      pre.innerHTML = "<code>npm run build &amp;&amp; npm test</code>";
+      article.append(pre);
+    }
+    if (i === 12) {
+      const zh = document.createElement("p");
+      zh.id = "zh";
+      zh.textContent = "这是一段已经是中文的段落，不需要翻译。";
+      article.append(zh);
+    }
+    const p = document.createElement("p");
+    p.id = "p" + i;
+    p.textContent = "Paragraph " + i + ": " + Array.from({ length: 24 }, (_, k) => words[(i + k) % words.length]).join(" ") + ".";
+    article.append(p);
+  }
+</script>
+</body>
+</html>

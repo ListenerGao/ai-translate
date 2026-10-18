@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Single page app</title>
+<style>body { font: 18px/1.6 Georgia, serif; margin: 0 auto; max-width: 720px; padding: 24px; } p { margin: 0 0 20px; }</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+  // 单页应用：先显示链接列表（不是文章），goArticle() 不刷新页面就换成一篇英文文章、改地址
+  const app = document.getElementById("app");
+  app.innerHTML = "<h1>Index</h1><ul>" + Array.from({ length: 30 }, (_, i) => '<li><a href="#a' + i + '">Entry ' + i + "</a></li>").join("") + "</ul>";
+  window.goArticle = () => {
+    const words = "single page apps swap content without reloading so the extension has to notice the new article".split(" ");
+    app.innerHTML = "<h1 id='spa-title'>An article loaded without a page reload</h1>" +
+      Array.from({ length: 12 }, (_, i) => "<p id='spa-p" + (i + 1) + "'>Section " + (i + 1) + ": " + Array.from({ length: 22 }, (_, k) => words[(i + k) % words.length]).join(" ") + ".</p>").join("");
+    history.pushState({}, "", "?view=article");
+  };
+</script>
+</body>
+</html>

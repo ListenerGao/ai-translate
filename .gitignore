@@ -1,0 +1,29 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 测试产物
+test-results/
+playwright-report/
+coverage/
+
+# 模型与密钥：模型放 ~/Library/Application Support/ai-translate/，这里兜底
+*.gguf
+api-key
+.env*
+!.env.example
+*.pem
+*.crx
+
+# 系统与编辑器
+.DS_Store
+.vscode/
+.idea/
+
+# AI 本地配置
+.claude/
+.codex/
+
+# 任务临时文件，正式流程不依赖其中内容
+.tmp/

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Page structures</title>
+<style>
+  body { font: 18px/1.6 Georgia, serif; margin: 0 auto; max-width: 720px; padding: 24px; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; }
+</style>
+</head>
+<body>
+<article>
+  <div id="product-switcher" style="display: flex; align-items: center; gap: 6px">
+    <span style="width: 6px; height: 6px; background: orange"></span>
+    <h1 id="single-word" style="font-size: 20px; margin: 0">Hub</h1>
+    <svg width="12" height="12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="gray"/></svg>
+  </div>
+  <div id="product-switcher-2" style="display: flex; align-items: center; gap: 6px">
+    <h1 id="short-title" style="font-size: 20px; margin: 0">Hub Python Library</h1>
+    <svg width="12" height="12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="gray"/></svg>
+  </div>
+  <h2 id="anchored" style="position: relative">
+    <a href="#anchored" style="display: block; position: absolute; left: -24px">#</a>
+    <span>Getting started fast</span>
+  </h2>
+  <p id="brand">Hugging Face Hub</p>
+  <div id="div-heading" style="font-size: 24px; font-weight: bold">Join the local translation community</div>
+  <p id="intro">and get access to the augmented reading experience</p>
+
+  <table id="table">
+    <thead><tr><th id="th1">Basic plan</th><th id="th2">Managed plan</th></tr></thead>
+    <tbody><tr><td id="td1"><strong>Scope</strong></td><td id="td2">Organization resources only</td></tr></tbody>
+  </table>
+
+  <div id="flex-bare" style="display: flex; gap: 8px">Bare flex text <span id="flex-span">Flex child label</span></div>
+
+  <ul>
+    <li id="li-nested">Parent item text
+      <ul><li id="li-child">Child item text</li></ul>
+    </li>
+  </ul>
+
+  <p id="inline-mix">Read the <a href="#">setup guide</a> and the <strong>security notes</strong> first.</p>
+
+  <p id="muted" style="color: #9ca3af">Muted gray text on a light background must stay readable</p>
+
+  <div style="width: 170px">
+    <div id="narrow-short">Faster examples with accelerated inference</div>
+  </div>
+  <div style="width: 300px">
+    <div id="tight">Switch documentation themes now</div>
+  </div>
+
+  <div style="background: #111; color: #eee; padding: 8px">
+    <p id="dark-p">This paragraph sits on a dark background.</p>
+  </div>
+  <div style="color: oklch(0.95 0.01 250)">
+    <p id="oklch-p" style="background: #222">Light text written in the oklch color syntax.</p>
+  </div>
+
+  <div role="navigation" id="role-nav"><a href="#">Role navigation link</a></div>
+  <div aria-hidden="true" id="hidden-aria">Decorative hidden text</div>
+  <div id="display-none" style="display: none">Hidden block text</div>
+</article>
+</body>
+</html>

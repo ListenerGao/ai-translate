@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>中文文章</title>
+<style>body { font: 18px/1.7 sans-serif; margin: 0 auto; max-width: 720px; padding: 24px; }</style>
+</head>
+<body>
+<article id="article"><h1>本地翻译工具的一次实践</h1></article>
+<script>
+  // 中文文章：已经是目标语言，不应自动开启
+  const article = document.getElementById("article");
+  for (let i = 1; i <= 12; i++) {
+    const p = document.createElement("p");
+    p.textContent = "第" + i + "段：本地模型在自己的电脑上运行，翻译内容不会离开本机，速度也足够快，适合边读边翻译的场景，阅读体验和在线服务差不多。";
+    article.append(p);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AI Translate</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #18202c; --muted: #5a6375; --line: #d5dae3; --accent: #2753c8; --accent-fg: #ffffff;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #171c25; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c; --accent: #86a5ff; --accent-fg: #0f131a; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 300px; background: var(--bg); color: var(--fg); font: 13px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
+  main { padding: 14px 16px 12px; display: grid; gap: 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #state { font-weight: 600; }
+  #detect, .host { color: var(--muted); font-size: 12px; margin: 0; }
+  button { font: inherit; border-radius: 7px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  fieldset { margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+  legend { padding: 0; font-weight: 600; }
+  fieldset label { display: flex; align-items: center; gap: 6px; }
+  .links { border-top: 1px solid var(--line); padding-top: 10px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <div class="row">
+    <span id="state">读取中…</span>
+    <button id="toggle" type="button" disabled>翻译此页</button>
+  </div>
+  <p id="detect"></p>
+  <fieldset id="rules" disabled>
+    <legend>这个网站</legend>
+    <p class="host" id="host"></p>
+    <label><input type="radio" name="rule" value="auto" id="rule-auto"> 自动（英文文章才翻译）</label>
+    <label><input type="radio" name="rule" value="always" id="rule-always"> 总是翻译</label>
+    <label><input type="radio" name="rule" value="never" id="rule-never"> 从不翻译</label>
+  </fieldset>
+  <div class="links"><a href="#" id="options">设置</a></div>
+</main>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inline formatting</title>
+<style>
+  body { font: 18px/1.6 Georgia, serif; margin: 0 auto; max-width: 720px; padding: 24px; }
+</style>
+</head>
+<body>
+<article>
+  <p id="links">Read the <a id="guide-link" href="https://example.com/guide">setup guide</a> and the <strong>security notes</strong> before you start.</p>
+  <p id="nested">This sentence has <em>emphasis with a <a href="https://example.com/nested">nested link</a> inside</em> for testing.</p>
+  <p id="code">Set the <code>initialDelaySeconds</code> field to give the container enough time to boot.</p>
+  <p id="image">The status icon <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="ok" width="12" height="12"> means the service is healthy.</p>
+  <p id="breaks">First line of the postal address<br>Second line of the postal address</p>
+  <p id="broken">This paragraph links to <a href="https://example.com/broken">a broken page</a> on purpose.</p>
+  <p id="anchor-only"><a id="section-anchor"></a>A paragraph that starts with an empty anchor element.</p>
+  <p id="plain">A plain paragraph without any formatting at all.</p>
+</article>
+</body>
+</html>

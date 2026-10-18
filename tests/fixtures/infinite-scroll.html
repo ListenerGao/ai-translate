@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Infinite scroll</title>
+<style>
+  body { font: 18px/1.6 Georgia, serif; margin: 0 auto; max-width: 640px; padding: 24px; }
+  p { margin: 0 0 24px; }
+</style>
+</head>
+<body>
+<main id="feed"></main>
+<script>
+  // 先放 15 段，滚到底附近再追加 10 段，最多追加 3 次
+  const feed = document.getElementById("feed");
+  let batch = 0;
+  function add(prefix, count) {
+    for (let i = 1; i <= count; i++) {
+      const p = document.createElement("p");
+      p.id = prefix + "-" + i;
+      p.textContent = "Feed item " + prefix + " number " + i + " describes how a small model can translate a page while the reader keeps scrolling.";
+      feed.append(p);
+    }
+  }
+  add("first", 15);
+  window.addEventListener("scroll", () => {
+    if (batch >= 3) return;
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 200) {
+      batch++;
+      add("more" + batch, 10);
+    }
+  });
+</script>
+</body>
+</html>

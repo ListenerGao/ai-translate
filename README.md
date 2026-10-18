@@ -1,0 +1,44 @@
+# ai-translate
+
+本地离线翻译工具：用本机运行的 Index-Translate 模型翻译网页文章，翻译内容不出本机。
+
+## 当前状态
+
+第一阶段的浏览器插件已经能在开发者模式下加载使用。打开英文文章页会自动开始翻译（也可以点工具栏的「译」图标在弹窗里开关，或按 `Alt+T`），屏幕内和下方约 1 屏的段落先翻，译文用青色和原文区分，往下滑接着翻，再按一次还原页面。5 个单词起的译文放在原文下方；1~4 个单词的短文本（标题、菜单、表格单元格）放得下时译文跟在同一行右边，放不下也放到下方。正文、标题、列表、表格都会翻，导航、按钮、代码块不翻。段落里的链接、加粗、斜体在译文里保留（链接能点），行内代码和图片原样保留、不翻译；个别段落模型没保住格式时，这一段的译文按纯文本显示。
+
+- 自动开启：只对「英文且像文章」的页面自动开启；搜索结果、列表、目录、首页不会自动开。工具栏弹窗里可以按网站设成「总是翻译」或「从不翻译」
+- 划词翻译：在任意网页选中英文，旁边出现一个小图标，点一下在气泡里显示译文，可以复制
+- 模型用 Index-Translate-2B（Q8_0）。想试 Q4_K_M（单条快约两成，滑动翻译快约 5%）：`scripts/download-model.sh Q4_K_M` 下载后用 `scripts/start-model.sh Q4_K_M` 启动；两个版本的盲评对比页在 `docs/quant-blind-test.html`
+
+## 使用
+
+需要 macOS（Apple Silicon）、Homebrew、Node 22（`nvm`）和 Chrome。
+
+1. 安装 llama.cpp：`brew install llama.cpp`
+2. 下载模型（约 2.1 GB，下载后校验 sha256）：`scripts/download-model.sh`
+3. 启动模型服务（前台运行，只监听 `127.0.0.1:8791`）：`scripts/start-model.sh`。首次运行会生成密钥，存在 `~/Library/Application Support/ai-translate/api-key`
+4. 构建插件：`nvm use && npm install && npm run build`，产物在 `apps/extension/dist/`
+5. 加载插件：Chrome 打开 `chrome://extensions`，打开右上角「开发者模式」，点「加载已解压的扩展程序」，选 `apps/extension/dist/`
+6. 填密钥：插件详情里打开「扩展程序选项」，运行 `pbcopy < ~/Library/Application\ Support/ai-translate/api-key` 后粘贴到「密钥」，保存，点「测试连接」
+7. 打开一篇英文文章，会自动开始翻译；没有自动开启的页面，点「译」图标在弹窗里点「翻译此页」，或按 `Alt+T`
+
+设置页还能改目标语言、显示方式（双语对照 / 只看译文）、术语表（一行一条 `原文=译文`），以及「英文文章页自动开启翻译」「划词翻译」两个开关。
+
+## 开发
+
+先 `nvm use`，再在仓库根目录运行：
+
+- `npm run typecheck`：类型检查
+- `npm test`：单测
+- `npm run build`：打包插件
+- `npm run e2e`：用 Playwright 自带的 Chromium 加载插件跑端到端测试（首次先 `npm run e2e:install`）
+- `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字（需要模型服务在运行）
+
+目录说明见 `AGENTS.md`。
+
+## 文档
+
+- 架构：`docs/architecture-v1.html`（浏览器打开）
+- 进度、待办与决策：`ROADMAP.md`
+- 项目约定：`AGENTS.md`
+- 施工清单：`goals/`

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Link list</title>
+<style>body { font: 16px/1.5 sans-serif; margin: 0 auto; max-width: 720px; padding: 24px; }</style>
+</head>
+<body>
+<h1>Latest stories</h1>
+<ul id="list"></ul>
+<script>
+  // 英文列表页：40 条链接标题，链接文字占大头，不应被当成文章
+  const list = document.getElementById("list");
+  for (let i = 1; i <= 40; i++) {
+    const li = document.createElement("li");
+    li.id = "item-" + i;
+    li.innerHTML = '<a href="#story-' + i + '">Story number ' + i + ' about local translation tools</a> (' + (i * 3) + ' comments)';
+    list.append(li);
+  }
+</script>
+</body>
+</html>
