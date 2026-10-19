@@ -21,6 +21,7 @@ export class SqliteCache implements CacheStore {
   readonly #touch: StatementSync;
   readonly #put: StatementSync;
   #writes = 0;
+  #closed = false;
 
   constructor(file: string, options: SqliteCacheOptions = {}) {
     this.#maxEntries = options.maxEntries ?? 100_000;
@@ -42,7 +43,9 @@ export class SqliteCache implements CacheStore {
     this.prune();
   }
 
+  // aitd 退出时，已经开始的翻译还会陆续完成：关闭后读写都当作没有缓存，不报错
   async get(key: string): Promise<string | undefined> {
+    if (this.#closed) return undefined;
     const row = this.#get.get(key) as { text: string } | undefined;
     if (row === undefined) return undefined;
     this.#touch.run(this.#now(), key);
@@ -50,6 +53,7 @@ export class SqliteCache implements CacheStore {
   }
 
   async set(key: string, text: string): Promise<void> {
+    if (this.#closed) return;
     this.#put.run(key, text, this.#now());
     if (++this.#writes % this.#pruneEvery === 0) this.prune();
   }
@@ -67,6 +71,8 @@ export class SqliteCache implements CacheStore {
   }
 
   close(): void {
+    if (this.#closed) return;
+    this.#closed = true;
     this.#db.close();
   }
 }

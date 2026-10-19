@@ -1,11 +1,16 @@
-// 真实网页检查：用 Playwright 的 Chromium 加载插件，连本机正在运行的模型服务，翻译一个真实网页。
+// 真实网页检查：用 Playwright 的 Chromium 加载插件，翻译一个真实网页。
+// 插件连这里临时起的 aitd（数据目录用临时目录，不碰主人的缓存），aitd 再连本机正在运行的模型服务。
 // 输出首段出译文的时间、开启时范围内（屏幕内 + 下方 1 屏）全部出完的时间、有格式的段落保住格式的个数；加 --scroll 从头滚到尾，列出可见但没被翻译的文字；加 --shot 截取当前屏幕。
 // 用法：npm run check-page -- <url> [--scroll] [--shot out.png] [--at <选择器>]
 //   --at：截图前先滚到这个元素
-// 前提：npm run build；scripts/start-model.sh 在运行；网络走 https_proxy（有的话）。
+// 前提：npm run build；scripts/start-model.sh 在运行（模型服务地址可用 AIT_MODEL_URL 改，默认 http://127.0.0.1:8791）；网络走 https_proxy（有的话）。
 import { chromium } from "@playwright/test";
+import { mkdtempSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+import { startAitd } from "../apps/server/src/app.ts";
+import { ExternalModel } from "../apps/server/src/model.ts";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -22,6 +27,14 @@ if (!url) {
 const extension = fileURLToPath(new URL("../apps/extension/dist", import.meta.url));
 const apiKey = (await readFile(`${homedir()}/Library/Application Support/ai-translate/api-key`, "utf8")).trim();
 const proxy = process.env.https_proxy ?? process.env.HTTPS_PROXY;
+const aitdHome = mkdtempSync(join(tmpdir(), "ait-check-page-"));
+const aitd = await startAitd({
+  port: 0,
+  apiKey,
+  home: aitdHome,
+  model: new ExternalModel({ endpoint: process.env.AIT_MODEL_URL ?? "http://127.0.0.1:8791", apiKey }),
+  version: "check-page",
+});
 
 const context = await chromium.launchPersistentContext("", {
   channel: "chromium",
@@ -34,7 +47,7 @@ try {
   let [worker] = context.serviceWorkers();
   worker ??= await context.waitForEvent("serviceworker");
   // 关掉自动开启：由脚本自己开启翻译并计时（文章页会自动开启，再切换一次反而关掉了）
-  await worker.evaluate((key) => chrome.storage.local.set({ endpoint: "http://127.0.0.1:8791", apiKey: key, autoTranslate: false }), apiKey);
+  await worker.evaluate((settings) => chrome.storage.local.set(settings), { endpoint: aitd.url, apiKey, autoTranslate: false });
 
   const page = await context.newPage();
   await page.goto(url, { waitUntil: "load", timeout: 60_000 });
@@ -89,6 +102,8 @@ try {
   console.log(JSON.stringify(report, null, 2));
 } finally {
   await context.close();
+  await aitd.close();
+  rmSync(aitdHome, { recursive: true, force: true });
 }
 
 // 在页面里运行：列出可见但没翻译的文字，按所在元素分组（导航、按钮等按规则跳过的单独计数）

@@ -34,6 +34,8 @@ function sameText(a: string, b: string): boolean {
 }
 // 这几类错误和段落无关，整页只提示一次，段落保持未翻译，改好设置后自动重试
 const PAGE_LEVEL_ERRORS = new Set<TranslateErrorCode>(["endpoint", "no-key", "unreachable", "unauthorized"]);
+/** 本机翻译服务连不上时，每隔一会儿重新排队一次：服务启动后自动接着翻 */
+const RETRY_MS = 5000;
 
 export class PageSession {
   #active = false;
@@ -48,6 +50,8 @@ export class PageSession {
   #mutation: MutationObserver | null = null;
   #scanTimer = 0;
   #priorityTimer = 0;
+  #retryTimer = 0;
+  #bannerShown = false;
 
   get active(): boolean {
     return this.#active;
@@ -83,6 +87,9 @@ export class PageSession {
     chrome.storage.onChanged.removeListener(this.#onSettingsChanged);
     clearTimeout(this.#scanTimer);
     clearTimeout(this.#priorityTimer);
+    clearTimeout(this.#retryTimer);
+    this.#retryTimer = 0;
+    this.#bannerShown = false;
 
     const queued = [...this.#blocks.values()].filter((b) => b.status === "queued").map((b) => b.id);
     if (queued.length > 0) this.#send({ type: "cancel", ids: queued }, false);
@@ -215,6 +222,7 @@ export class PageSession {
       this.#settings = s;
       if (modeChanged) for (const block of this.#blocks.values()) applyDisplayMode(block, s.displayMode);
       hideBanner();
+      this.#bannerShown = false;
       this.#requeueVisible();
     });
   };
@@ -272,6 +280,11 @@ export class PageSession {
     if (!this.#active || block === undefined || this.#settings === null) return;
     if (msg.type === "result") {
       block.status = "done";
+      // 服务恢复了：撤掉整页提示
+      if (this.#bannerShown) {
+        hideBanner();
+        this.#bannerShown = false;
+      }
       // 译文和原文一样（品牌名、产品名）就不显示，免得出现「Hugging Face Hugging Face」
       if (sameText(stripMarkers(msg.text), block.text)) clearPending(block);
       else showResult(block, msg.text, this.#settings.target, this.#settings.displayMode);
@@ -283,6 +296,13 @@ export class PageSession {
       showBanner(msg.message, () => {
         chrome.runtime.sendMessage({ type: "open-options" }).catch(() => {});
       });
+      this.#bannerShown = true;
+      if (msg.code === "unreachable" && this.#retryTimer === 0) {
+        this.#retryTimer = window.setTimeout(() => {
+          this.#retryTimer = 0;
+          this.#requeueVisible();
+        }, RETRY_MS);
+      }
       return;
     }
     // 超时、服务出错：段落下提示，滑出再回来会重试；译文不合格：不再重试

@@ -56,9 +56,9 @@
 
   <form id="form" novalidate>
     <div class="field">
-      <label for="endpoint">模型服务地址</label>
+      <label for="endpoint">本机翻译服务地址</label>
       <input id="endpoint" type="text" autocomplete="off" spellcheck="false">
-      <p class="hint">只能填本机地址（127.0.0.1 或 localhost）。默认端口 8791，由 <code>scripts/start-model.sh</code> 启动。</p>
+      <p class="hint">只能填本机地址（127.0.0.1 或 localhost）。默认 <code>http://127.0.0.1:8790</code>，在项目目录运行 <code>npm run aitd</code> 启动本机翻译服务 aitd，模型用到时自动启动。</p>
       <p class="error" id="endpoint-error" hidden></p>
     </div>
 
@@ -68,7 +68,7 @@
         <input id="api-key" type="password" autocomplete="off" spellcheck="false">
         <button id="toggle-key" type="button">显示</button>
       </div>
-      <p class="hint">首次启动模型服务时生成。复制到剪贴板：<code>pbcopy &lt; ~/Library/Application\ Support/ai-translate/api-key</code></p>
+      <p class="hint">首次启动 aitd 时生成。复制到剪贴板：<code>pbcopy &lt; ~/Library/Application\ Support/ai-translate/api-key</code></p>
     </div>
 
     <div class="field">
@@ -95,7 +95,8 @@
     <div class="field">
       <label for="glossary">术语表</label>
       <textarea id="glossary" spellcheck="false" placeholder="例如：liveness probe=存活探针"></textarea>
-      <p class="hint">一行一条 <code>原文=译文</code>，<code>#</code> 开头的行是注释。只有段落里出现的术语才会发给模型。</p>
+      <p class="hint">一行一条 <code>原文=译文</code>，<code>#</code> 开头的行是注释。术语表存在本机翻译服务 aitd 里，插件和命令行共用；只有段落里出现的术语才会发给模型。</p>
+      <p class="error" id="glossary-state" hidden></p>
       <p class="hint" id="builtin-glossary"></p>
       <ul class="error" id="glossary-errors" hidden></ul>
     </div>

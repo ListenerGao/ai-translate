@@ -1,7 +1,8 @@
 // 工具栏弹窗：原文 / 目标语言、模型和本机服务状态、按网站设置、显示方式切换、翻译开关。
 // 默认操作当前窗口的活动标签页；网址带 ?tab=<id> 时操作指定标签页（e2e 点不了浏览器工具栏，靠它测试）。
-import { checkLocalEndpoint } from "@ai-translate/core";
+import { TranslateError, checkLocalEndpoint } from "@ai-translate/core";
 import type { PageDetection } from "../content/detect.ts";
+import { AITD_API, aitdHealth, aitdStatus } from "../shared/aitd.ts";
 import { LANGUAGES, languageLabel } from "../shared/languages.ts";
 import type { RuntimeMessage, TabCommand, TabStatus } from "../shared/messages.ts";
 import { flipDisplayMode, loadSettings, saveSettings, type DisplayMode, type Settings, type SiteRule } from "../shared/settings.ts";
@@ -73,21 +74,28 @@ function renderDetection(): void {
   else hint.textContent = settings.autoTranslate ? "英文文章，打开时会自动翻译" : "英文文章（自动翻译已在设置里关闭）";
 }
 
-/** 本机模型服务状态：/health 不需要密钥 */
+/** 本机翻译服务 aitd 和模型的状态：先看 aitd 在不在（/health 不要密钥），再看模型是运行中、启动中还是已休眠 */
 async function renderStatus(): Promise<void> {
-  const dot = $("dot");
-  const status = $("status");
-  const endpoint = checkLocalEndpoint(settings.endpoint);
-  let state: "ok" | "bad" | "warn" = "bad";
-  let text = "服务地址不对";
-  if (endpoint.ok) {
-    const alive = await fetch(`${endpoint.base}/health`, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
-    if (!alive) text = "本机服务未启动";
-    else if (settings.apiKey.trim() === "") [state, text] = ["warn", "还没填密钥"];
-    else [state, text] = ["ok", "本机已连接"];
+  const show = (state: "ok" | "bad" | "warn" | "idle", text: string, title = "") => {
+    $("dot").dataset.state = state;
+    $("status").textContent = text;
+    $("status").title = title;
+  };
+  if (!checkLocalEndpoint(settings.endpoint).ok) return show("bad", "服务地址不对");
+  const api = await aitdHealth(settings.endpoint);
+  if (api === null) return show("bad", "aitd 没启动", "在项目目录运行 npm run aitd");
+  if (api !== AITD_API) return show("bad", "版本对不上", "插件和 aitd 更新到同一版本");
+  if (settings.apiKey.trim() === "") return show("warn", "还没填密钥");
+  try {
+    const { model } = await aitdStatus(settings);
+    if (model.quant !== undefined) $("model-name").textContent = `Index-Translate-2B · ${model.quant}`;
+    if (model.state === "ready") return show("ok", "运行中");
+    if (model.state === "starting") return show("warn", "启动中");
+    if (model.state === "stopped") return show("idle", "已休眠", "用到时自动启动");
+    return show("bad", "出错", model.detail ?? "");
+  } catch (err) {
+    return show("bad", err instanceof TranslateError && err.code === "unauthorized" ? "密钥不对" : "连不上 aitd");
   }
-  dot.dataset.state = state;
-  status.textContent = text;
 }
 
 // ---------- 操作 ----------

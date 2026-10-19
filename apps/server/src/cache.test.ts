@@ -33,6 +33,15 @@ describe("SqliteCache", () => {
     assert.equal(statSync(file).mode & 0o777, 0o600);
   });
 
+  test("关闭后还在完成的翻译来读写：不报错，当作没有缓存", async () => {
+    const cache = new SqliteCache(join(dir, "cache.db"));
+    await cache.set("a", "甲");
+    cache.close();
+    await cache.set("b", "乙");
+    assert.equal(await cache.get("a"), undefined);
+    cache.close();
+  });
+
   test("打开时就超上限（比如改小了上限）：先淘汰到上限以内", async () => {
     const file = join(dir, "cache.db");
     const big = new SqliteCache(file, { maxEntries: 10 });
@@ -58,6 +67,11 @@ describe("GlossaryFile", () => {
 });
 
 describe("Logger", () => {
+  test("日志目录被删了也不抛错（这一行丢掉）", () => {
+    const log = new Logger(join(dir, "gone", "aitd.log"));
+    assert.doesNotThrow(() => log.info("request", { status: 200 }));
+  });
+
   test("超过上限轮转一次：旧内容挪到 .1，新文件从头写", () => {
     const file = join(dir, "aitd.log");
     const log = new Logger(file, { maxBytes: 300 });

@@ -1,18 +1,7 @@
-// 扩展后台（service worker）：接收网页端的段落，排队翻译，按段返回译文。
-import {
-  BUILTIN_GLOSSARY,
-  DEFAULT_MODEL_ID,
-  LlamaServerTranslator,
-  Pipeline,
-  Scheduler,
-  TranslateError,
-  getModelProfile,
-  isAbortError,
-  mergeGlossary,
-  parseGlossary,
-  type Segment,
-  type SegmentOutcome,
-} from "@ai-translate/core";
+// 扩展后台（service worker）：接收网页端的段落，排队后交给本机翻译服务 aitd，按段返回译文。
+// 缓存、术语表、模型都在 aitd；这里只按视口远近排队，同时最多发 4 段（等于模型的并行槽位）。
+import { DEFAULT_MODEL_ID, Scheduler, TranslateError, getModelProfile, isAbortError, type Segment } from "@ai-translate/core";
+import { AitdError, AitdTranslator, migrateGlossary } from "../shared/aitd.ts";
 import { errorMessage } from "../shared/errors.ts";
 import {
   PAGE_PORT,
@@ -24,8 +13,7 @@ import {
   type TabCommand,
   type TabStatus,
 } from "../shared/messages.ts";
-import { flipDisplayMode, loadSettings, type Settings } from "../shared/settings.ts";
-import { IdbCache } from "./cache.ts";
+import { flipDisplayMode, loadSettings, migrateSettings, type Settings } from "../shared/settings.ts";
 
 let settingsMemo: Promise<Settings> | null = null;
 chrome.storage.onChanged.addListener((_changes, area) => {
@@ -33,34 +21,41 @@ chrome.storage.onChanged.addListener((_changes, area) => {
 });
 const getSettings = () => (settingsMemo ??= loadSettings());
 
-const cache = new IdbCache();
+// Chrome 对同一地址最多同时开 6 个连接：一次把几十段都发给 aitd 会在浏览器里排队、打乱视口优先级，所以只发轮到的
 const scheduler = new Scheduler(getModelProfile(DEFAULT_MODEL_ID).parallel);
-const pipeline = new Pipeline({ cache, scheduler });
+
+// 旧版的默认地址换成 aitd 的；插件里旧的术语表搬到 aitd（aitd 没启动就下次再搬）
+void migrateSettings().then(() => migrateGlossary());
+
+interface Outcome {
+  text: string;
+  cached: boolean;
+}
+
+/** 出错时给人看的提示：aitd 给了原因就用它的 */
+function describe(err: unknown): { code: TranslateError["code"]; message: string } {
+  const e = err instanceof TranslateError ? err : new TranslateError("server", String(err));
+  return { code: e.code, message: e instanceof AitdError ? e.display : errorMessage(e.code, e.detail) };
+}
 
 /** 调度队列里的任务 id：段落 id 只在标签页内唯一 */
 const taskId = (tabId: number, segmentId: string) => `${tabId}:${segmentId}`;
 
 /** 按入队时的设置翻译一段；target 不传就用设置里的目标语言 */
-async function translateSegment(
-  tabId: number,
-  segment: Segment,
-  priority: number,
-  signal?: AbortSignal,
-  target?: string,
-): Promise<SegmentOutcome> {
+async function translateSegment(tabId: number, segment: Segment, priority: number, signal?: AbortSignal, target?: string): Promise<Outcome> {
   const s = await getSettings();
-  const translator = new LlamaServerTranslator({ endpoint: s.endpoint, apiKey: s.apiKey, profile: getModelProfile(s.modelId) });
-  const job = {
-    taskId: taskId(tabId, segment.id),
-    segment,
+  // 读设置期间可能已被撤销：这时任务还没进队列，撤销消息找不到它
+  signal?.throwIfAborted();
+  const translator = new AitdTranslator(s, priority);
+  const request = { segments: [segment], source: s.source, target: target ?? s.target, model: s.modelId };
+  return scheduler.enqueue({
+    id: taskId(tabId, segment.id),
     priority,
-    source: s.source,
-    target: target ?? s.target,
-    model: s.modelId,
-    // 用户的术语优先，内置术语补在后面
-    glossary: mergeGlossary(parseGlossary(s.glossaryText).entries, BUILTIN_GLOSSARY),
-  };
-  return pipeline.translate(job, translator, signal);
+    run: async (runSignal) => {
+      for await (const r of translator.translate(request, runSignal)) return { text: r.text, cached: r.cached };
+      throw new TranslateError("server", "本机翻译服务没有返回译文");
+    },
+  });
 }
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -89,8 +84,7 @@ chrome.runtime.onConnect.addListener((port) => {
       .then((r) => post({ type: "result", id: item.id, text: r.text, cached: r.cached }))
       .catch((err: unknown) => {
         if (isAbortError(err)) return;
-        const e = err instanceof TranslateError ? err : new TranslateError("server", String(err));
-        post({ type: "error", id: item.id, code: e.code, message: errorMessage(e.code, e.detail) });
+        post({ type: "error", id: item.id, ...describe(err) });
       })
       .finally(() => {
         if (controllers.get(item.id) === controller) controllers.delete(item.id);
@@ -157,8 +151,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMessage, sender, sendResponse:
       translateSegment(tabId, { id: `sel-${++selectionSeq}`, text: msg.text }, SELECTION_PRIORITY, undefined, msg.target)
         .then((r) => sendResponse({ ok: true, text: r.text }))
         .catch((err: unknown) => {
-          const e = err instanceof TranslateError ? err : new TranslateError("server", String(err));
-          sendResponse({ ok: false, message: errorMessage(e.code, e.detail) });
+          sendResponse({ ok: false, message: describe(err).message });
         });
       return true;
     }
@@ -178,6 +171,8 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 // 安装或更新后，给已经打开的网页补注入 content script，免得要刷新
 chrome.runtime.onInstalled.addListener(async () => {
+  // 第一阶段插件自己用 IndexedDB 缓存译文；缓存搬到 aitd 后删掉旧库
+  indexedDB.deleteDatabase("ai-translate");
   await chrome.action.setBadgeBackgroundColor({ color: "#2753C8" });
   const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"] });
   for (const tab of tabs) {

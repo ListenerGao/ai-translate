@@ -21,13 +21,18 @@ export class Logger {
   info(event: string, fields: LogFields = {}): void {
     const line = `${JSON.stringify({ time: new Date().toISOString(), event, ...fields })}\n`;
     const size = Buffer.byteLength(line);
-    // 超过上限轮转一次：aitd.log → aitd.log.1（覆盖上一份）
-    if (this.#bytes + size > this.#maxBytes && this.#bytes > 0) {
-      renameSync(this.#file, `${this.#file}.1`);
+    // 写日志失败（磁盘满、目录被删）不能拖垮服务：这一行丢掉就是
+    try {
+      // 超过上限轮转一次：aitd.log → aitd.log.1（覆盖上一份）
+      if (this.#bytes + size > this.#maxBytes && this.#bytes > 0) {
+        renameSync(this.#file, `${this.#file}.1`);
+        this.#bytes = 0;
+      }
+      appendFileSync(this.#file, line, { mode: 0o600 });
+      this.#bytes += size;
+    } catch {
       this.#bytes = 0;
     }
-    appendFileSync(this.#file, line, { mode: 0o600 });
-    this.#bytes += size;
     if (this.#echo) process.stdout.write(line);
   }
 }

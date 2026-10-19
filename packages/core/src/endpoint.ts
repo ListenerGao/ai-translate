@@ -1,4 +1,5 @@
-export const DEFAULT_ENDPOINT = "http://127.0.0.1:8791";
+/** 插件、命令行连本机翻译服务 aitd 的默认地址（第一阶段插件直连 llama-server 时是 8791） */
+export const DEFAULT_ENDPOINT = "http://127.0.0.1:8790";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
@@ -13,7 +14,7 @@ export function checkLocalEndpoint(input: string): EndpointCheck {
   try {
     url = new URL(input.trim());
   } catch {
-    return { ok: false, reason: "地址格式不对，例如 http://127.0.0.1:8791" };
+    return { ok: false, reason: "地址格式不对，例如 http://127.0.0.1:8790" };
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     return { ok: false, reason: "只支持 http 或 https 地址" };

@@ -85,7 +85,7 @@ test("弹窗：语言、模型状态、翻译开关、显示方式立即生效�
   await expect(popup.locator("#source-label")).toHaveText("英语 (English)");
   await expect(popup.locator("#source-sub")).toHaveText("自动检测");
   await expect(popup.locator("#target-label")).toHaveText("简体中文 (Simplified Chinese)");
-  await expect(popup.locator("#status")).toHaveText("本机已连接");
+  await expect(popup.locator("#status")).toHaveText("运行中");
   await expect(popup.locator("#detect")).toContainText("英文文章");
   await expect(popup.locator("#site-rule")).toHaveValue("auto");
 

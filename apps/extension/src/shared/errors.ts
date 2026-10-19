@@ -8,7 +8,7 @@ export function errorMessage(code: TranslateErrorCode, detail = ""): string {
     case "no-key":
       return "还没填密钥：打开插件设置页，填入 api-key 文件里的密钥";
     case "unreachable":
-      return "连不上本地模型服务：先运行 scripts/start-model.sh";
+      return "本机翻译服务没启动：在项目目录运行 npm run aitd";
     case "unauthorized":
       return "密钥不对：到插件设置页重新填写";
     case "timeout":

@@ -1,6 +1,6 @@
 // Goal 3 CP1：划词翻译，用例编号对应施工清单
 import type { Page } from "@playwright/test";
-import { expect, settle, test, toggle } from "./fixtures.ts";
+import { API_KEY, expect, settle, test, toggle } from "./fixtures.ts";
 
 /** 选中元素里的文字（只选第一个文本节点，不含插件插入的译文），再触发 mouseup */
 async function select(page: Page, selector: string): Promise<string> {
@@ -243,7 +243,7 @@ test.describe("划词翻译", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`【译】${text}`);
   });
 
-  test("14 内置术语：划词含 mockup 时带上内置术语，自己写了同名术语以自己的为准；设置页列出内置术语", async ({ context, background, extensionId, mock, site }) => {
+  test("14 内置术语：划词含 mockup 时带上内置术语，自己写了同名术语以自己的为准；设置页列出内置术语", async ({ context, aitd, extensionId, mock, site }) => {
     const page = await context.newPage();
     await page.goto(`${site}/selection.html`);
     await page.evaluate(() => {
@@ -255,7 +255,8 @@ test.describe("划词翻译", () => {
     await expect(card(page).locator(".text")).toHaveAttribute("data-state", "done");
     expect(mock.requests[0]!.prompt).toContain("mockup→设计稿");
 
-    await background.evaluate(() => chrome.storage.local.set({ glossaryText: "mockup=原型图" }));
+    // 自己的术语表存在 aitd 里
+    await fetch(`${aitd.url}/api/glossary`, { method: "PUT", headers: { Authorization: `Bearer ${API_KEY}` }, body: "mockup=原型图" });
     await page.keyboard.press("Escape");
     await select(page, "#p2");
     await icon(page).click();
