@@ -20,7 +20,8 @@ fi
 chmod 600 "$KEY_FILE"
 
 # 关思考的两个参数照官方示例同时加；--api-key-file 让密钥不出现在进程参数里
+# --cache-ram 0 关掉提示缓存：默认上限 8GB，内存越用越大，每段原文都不同，对翻译没有帮助（Goal 4 CP0 实测）
 exec llama-server -m "$MODEL" \
-  --host 127.0.0.1 --port "$PORT" -c 16384 -np 4 -ngl 99 \
+  --host 127.0.0.1 --port "$PORT" -c 16384 -np 4 -ngl 99 --cache-ram 0 \
   --reasoning off --chat-template-kwargs '{"enable_thinking":false}' \
   --api-key-file "$KEY_FILE" --alias index-translate-2b

@@ -1,18 +1,11 @@
-import {
-  buildPrompt,
-  checkLocalEndpoint,
-  markersOf,
-  matchGlossary,
-  normalizeMarkupSpacing,
-  parseMarkup,
-  stripMarkers,
-  validateTranslation,
-  type ModelProfile,
-  type TranslateRequest,
-  type TranslateResult,
-  type Translator,
-} from "@ai-translate/core";
-import { TranslateError } from "../shared/errors.ts";
+import { checkLocalEndpoint } from "./endpoint.ts";
+import { TranslateError } from "./errors.ts";
+import { matchGlossary } from "./glossary.ts";
+import { markersOf, normalizeMarkupSpacing, parseMarkup, stripMarkers } from "./inline.ts";
+import type { ModelProfile } from "./models.ts";
+import { buildPrompt } from "./prompt.ts";
+import type { TranslateRequest, TranslateResult, Translator } from "./protocol.ts";
+import { validateTranslation } from "./validate.ts";
 
 export interface LlamaServerConfig {
   endpoint: string;
@@ -23,7 +16,7 @@ export interface LlamaServerConfig {
 }
 
 /**
- * 第一阶段的 Translator：直连本机 llama-server 的 OpenAI 兼容接口，一段一个请求。
+ * 直连本机 llama-server 的 OpenAI 兼容接口的 Translator，一段一个请求。第一阶段插件直接用它，第二阶段由 aitd 使用。
  * 段内有格式（segment.markup）时先按带标记的原文翻译；标记没保住或译文不合格，退回纯文本翻译。
  */
 export class LlamaServerTranslator implements Translator {

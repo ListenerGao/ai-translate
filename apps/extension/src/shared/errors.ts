@@ -1,23 +1,4 @@
-export type TranslateErrorCode =
-  | "endpoint"
-  | "no-key"
-  | "unreachable"
-  | "unauthorized"
-  | "timeout"
-  | "server"
-  | "invalid";
-
-export class TranslateError extends Error {
-  readonly code: TranslateErrorCode;
-  readonly detail: string;
-
-  constructor(code: TranslateErrorCode, detail = "") {
-    super(detail === "" ? code : `${code}: ${detail}`);
-    this.name = "TranslateError";
-    this.code = code;
-    this.detail = detail;
-  }
-}
+import type { TranslateErrorCode } from "@ai-translate/core";
 
 /** 显示在段落下方的一行提示 */
 export function errorMessage(code: TranslateErrorCode, detail = ""): string {
@@ -37,8 +18,4 @@ export function errorMessage(code: TranslateErrorCode, detail = ""): string {
     case "invalid":
       return "这一段没翻好，保留原文";
   }
-}
-
-export function isAbortError(err: unknown): boolean {
-  return err instanceof Error && err.name === "AbortError";
 }

@@ -1,9 +1,10 @@
-import { getModelProfile, type TranslateRequest } from "@ai-translate/core";
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, test } from "node:test";
-import { startMockServer, type MockServer } from "../../../../tests/mock-server.ts";
-import { TranslateError, isAbortError } from "../shared/errors.ts";
-import { LlamaServerTranslator } from "./translator.ts";
+import { startMockServer, type MockServer } from "../../../tests/mock-server.ts";
+import { TranslateError, isAbortError } from "./errors.ts";
+import { LlamaServerTranslator } from "./llama-server.ts";
+import { getModelProfile } from "./models.ts";
+import type { TranslateRequest } from "./protocol.ts";
 
 const KEY = "test-key";
 const SOURCE = "The server sends each token as a separate event.";

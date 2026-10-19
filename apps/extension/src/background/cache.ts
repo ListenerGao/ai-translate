@@ -1,20 +1,4 @@
-export interface CacheStore {
-  get(key: string): Promise<string | undefined>;
-  set(key: string, text: string): Promise<void>;
-}
-
-/** 单测用；IndexedDB 打不开时也退回到它，只是关掉浏览器就丢 */
-export class MemoryCache implements CacheStore {
-  readonly #map = new Map<string, string>();
-
-  async get(key: string): Promise<string | undefined> {
-    return this.#map.get(key);
-  }
-
-  async set(key: string, text: string): Promise<void> {
-    this.#map.set(key, text);
-  }
-}
+import { MemoryCache, type CacheStore } from "@ai-translate/core";
 
 interface Row {
   key: string;

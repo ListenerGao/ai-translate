@@ -1,7 +1,6 @@
 // 设置页：服务地址、密钥、目标语言、显示方式、术语表，以及「测试连接」。
-import { checkLocalEndpoint, getModelProfile, parseGlossary } from "@ai-translate/core";
-import { LlamaServerTranslator } from "../background/translator.ts";
-import { TranslateError, errorMessage } from "../shared/errors.ts";
+import { LlamaServerTranslator, TranslateError, checkLocalEndpoint, getModelProfile, parseGlossary } from "@ai-translate/core";
+import { errorMessage } from "../shared/errors.ts";
 import { loadSettings, saveSettings, type DisplayMode, type Settings } from "../shared/settings.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;

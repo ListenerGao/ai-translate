@@ -1,6 +1,5 @@
 // 一个标签页的翻译会话：开启后观察视口，把进入范围的段落交给后台，按段插入译文；关闭时完整还原页面。
-import { canUseMarkup, stripMarkers, toTagged } from "@ai-translate/core";
-import type { TranslateErrorCode } from "../shared/errors.ts";
+import { canUseMarkup, stripMarkers, toTagged, type TranslateErrorCode } from "@ai-translate/core";
 import { PAGE_PORT, type BackgroundToPage, type PageToBackground, type QueueItem } from "../shared/messages.ts";
 import { loadSettings, type Settings } from "../shared/settings.ts";
 import { BlockFinder, viewportDistance } from "./blocks.ts";

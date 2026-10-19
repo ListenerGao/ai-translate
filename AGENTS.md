@@ -24,7 +24,7 @@
 第一阶段的结构。预留的 `apps/server`（aitd）、`apps/cli`（ait）、`apps/desktop` 到对应阶段再建，不提前建空目录。
 
 ```
-packages/core/      翻译核心：段落协议、Translator 接口、prompt、术语表、结果校验、缓存键、模型配置
+packages/core/      翻译核心：段落协议、Translator 接口与 llama-server 实现、prompt、术语表、结果校验、缓存键与缓存接口、调度队列、翻译流水线、错误码、模型配置
 apps/extension/     浏览器插件：后台调度与缓存、网页端段落提取与渲染、划词翻译、英文文章检测与自动开启、工具栏弹窗、设置页
 scripts/            模型下载、模型启动、图标生成脚本
 tests/              e2e 用例、测试页面、模拟模型服务

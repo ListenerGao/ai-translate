@@ -1,4 +1,4 @@
-import type { TranslateErrorCode } from "./errors.ts";
+import type { TranslateErrorCode } from "@ai-translate/core";
 
 /** content script 连接后台用的长连接名 */
 export const PAGE_PORT = "ait-page";

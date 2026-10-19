@@ -1,9 +1,9 @@
-import type { TranslateRequest, TranslateResult, Translator } from "@ai-translate/core";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { DEFAULT_SETTINGS, type Settings } from "../shared/settings.ts";
 import { MemoryCache } from "./cache.ts";
-import { Pipeline } from "./pipeline.ts";
+import { parseGlossary } from "./glossary.ts";
+import { Pipeline, type PipelineJob } from "./pipeline.ts";
+import type { Segment, TranslateRequest, TranslateResult, Translator } from "./protocol.ts";
 import { Scheduler } from "./scheduler.ts";
 
 class FakeTranslator implements Translator {
@@ -18,18 +18,24 @@ class FakeTranslator implements Translator {
   }
 }
 
-function setup(settings: Partial<Settings> = {}, concurrency = 4) {
+function setup(glossaryText = "", concurrency = 4) {
   const translator = new FakeTranslator();
   const scheduler = new Scheduler(concurrency);
-  let current: Settings = { ...DEFAULT_SETTINGS, apiKey: "k", ...settings };
-  const pipeline = new Pipeline({
-    cache: new MemoryCache(),
-    scheduler,
-    getSettings: async () => current,
-    createTranslator: () => translator,
+  const raw = new Pipeline({ cache: new MemoryCache(), scheduler });
+  let glossary = parseGlossary(glossaryText).entries;
+  const segmentJob = (segment: Segment, priority = 0): PipelineJob => ({
+    taskId: segment.id,
+    segment,
+    priority,
+    source: "auto",
+    target: "zh",
+    model: "index-translate-2b",
+    glossary,
   });
-  const job = (id: string, text: string, priority = 0) => ({ tabId: 1, segment: { id, text }, priority });
-  return { translator, scheduler, pipeline, job, update: (s: Partial<Settings>) => (current = { ...current, ...s }) };
+  const job = (id: string, text: string, priority = 0) => segmentJob({ id, text }, priority);
+  // 测试里只有一个翻译实现，省掉每次传参
+  const pipeline = { translate: (j: PipelineJob, signal?: AbortSignal) => raw.translate(j, translator, signal) };
+  return { translator, scheduler, pipeline, job, segmentJob, setGlossary: (text: string) => (glossary = parseGlossary(text).entries) };
 }
 
 describe("Pipeline", () => {
@@ -38,6 +44,16 @@ describe("Pipeline", () => {
     assert.deepEqual(await pipeline.translate(job("a", "Hello there")), { text: "译:Hello there", cached: false });
     assert.deepEqual(await pipeline.translate(job("b", "Hello there")), { text: "译:Hello there", cached: true });
     assert.equal(translator.calls.length, 1);
+  });
+
+  test("通道传给调度队列：batch 排在 interactive 后面", async () => {
+    const { pipeline, translator, segmentJob } = setup("", 1);
+    translator.delayMs = 10;
+    const first = pipeline.translate(segmentJob({ id: "a", text: "Blocking paragraph text" }));
+    const batch = pipeline.translate({ ...segmentJob({ id: "b", text: "Batch paragraph text" }, 0), lane: "batch" });
+    const page = pipeline.translate(segmentJob({ id: "c", text: "Page paragraph text" }, 9));
+    await Promise.all([first, batch, page]);
+    assert.deepEqual(translator.calls, ["Blocking paragraph text", "Page paragraph text", "Batch paragraph text"]);
   });
 
   test("相同内容同时在翻时只翻一次", async () => {
@@ -49,24 +65,24 @@ describe("Pipeline", () => {
   });
 
   test("命中的术语变了，缓存不命中", async () => {
-    const { pipeline, translator, job, update } = setup({ glossaryText: "token=词元" });
+    const { pipeline, translator, job, setGlossary } = setup("token=词元");
     await pipeline.translate(job("a", "Each token is sent."));
-    update({ glossaryText: "token=令牌" });
+    setGlossary("token=令牌");
     const r = await pipeline.translate(job("b", "Each token is sent."));
     assert.equal(r.cached, false);
     assert.equal(translator.calls.length, 2);
   });
 
   test("没命中的术语改了，缓存照样命中", async () => {
-    const { pipeline, translator, job, update } = setup({ glossaryText: "pod=Pod" });
+    const { pipeline, translator, job, setGlossary } = setup("pod=Pod");
     await pipeline.translate(job("a", "Each token is sent."));
-    update({ glossaryText: "pod=容器组" });
+    setGlossary("pod=容器组");
     assert.equal((await pipeline.translate(job("b", "Each token is sent."))).cached, true);
     assert.equal(translator.calls.length, 1);
   });
 
   test("排队期间同样内容已被翻好：开始时再查缓存，不重复调用模型", async () => {
-    const { pipeline, translator, job } = setup({}, 1);
+    const { pipeline, translator, job } = setup("", 1);
     translator.delayMs = 30;
     const first = pipeline.translate(job("a", "Blocking paragraph text"));
     const queued = pipeline.translate(job("b", "Same text twice", 5));
@@ -76,13 +92,13 @@ describe("Pipeline", () => {
   });
 
   test("同一段文字带格式和不带格式分开缓存", async () => {
-    const { pipeline, translator } = setup();
+    const { pipeline, translator, segmentJob } = setup();
     const text = "Read the setup guide first.";
-    await pipeline.translate({ tabId: 1, segment: { id: "a", text, markup: "Read <g1>the setup guide</g1> first." }, priority: 0 });
-    const plain = await pipeline.translate({ tabId: 1, segment: { id: "b", text }, priority: 0 });
+    await pipeline.translate(segmentJob({ id: "a", text, markup: "Read <g1>the setup guide</g1> first." }));
+    const plain = await pipeline.translate(segmentJob({ id: "b", text }));
     assert.equal(plain.cached, false);
     assert.equal(translator.calls.length, 2);
-    const again = await pipeline.translate({ tabId: 1, segment: { id: "c", text, markup: "Read <g1>the setup guide</g1> first." }, priority: 0 });
+    const again = await pipeline.translate(segmentJob({ id: "c", text, markup: "Read <g1>the setup guide</g1> first." }));
     assert.equal(again.cached, true);
   });
 
@@ -104,12 +120,12 @@ describe("Pipeline", () => {
   });
 
   test("排队中的段落被撤销：AbortError，不调用模型", async () => {
-    const { pipeline, translator, scheduler, job } = setup({}, 1);
+    const { pipeline, translator, scheduler, job } = setup("", 1);
     translator.delayMs = 30;
     const running = pipeline.translate(job("a", "First paragraph here"));
     const queued = pipeline.translate(job("b", "Second paragraph here", 5));
     await new Promise((r) => setTimeout(r, 5));
-    assert.equal(scheduler.cancel(Pipeline.taskId(1, "b")), true);
+    assert.equal(scheduler.cancel("b"), true);
     await assert.rejects(queued, { name: "AbortError" });
     await running;
     assert.deepEqual(translator.calls, ["First paragraph here"]);

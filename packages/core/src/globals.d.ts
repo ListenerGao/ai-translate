@@ -9,6 +9,35 @@ declare global {
     addEventListener(type: "abort", listener: () => void, options?: { once?: boolean }): void;
     removeEventListener(type: "abort", listener: () => void): void;
   }
+  var AbortSignal: {
+    prototype: AbortSignal;
+    timeout(ms: number): AbortSignal;
+    any(signals: AbortSignal[]): AbortSignal;
+  };
+
+  class AbortController {
+    readonly signal: AbortSignal;
+    abort(reason?: unknown): void;
+  }
+
+  class DOMException extends Error {
+    constructor(message?: string, name?: string);
+  }
+
+  interface RequestInit {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: AbortSignal;
+  }
+
+  interface Response {
+    readonly ok: boolean;
+    readonly status: number;
+    json(): Promise<unknown>;
+  }
+
+  function fetch(input: string, init?: RequestInit): Promise<Response>;
 
   class TextEncoder {
     encode(input?: string): Uint8Array;

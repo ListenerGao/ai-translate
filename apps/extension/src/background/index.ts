@@ -1,6 +1,17 @@
 // 扩展后台（service worker）：接收网页端的段落，排队翻译，按段返回译文。
-import { DEFAULT_MODEL_ID, getModelProfile } from "@ai-translate/core";
-import { TranslateError, errorMessage, isAbortError } from "../shared/errors.ts";
+import {
+  DEFAULT_MODEL_ID,
+  LlamaServerTranslator,
+  Pipeline,
+  Scheduler,
+  TranslateError,
+  getModelProfile,
+  isAbortError,
+  parseGlossary,
+  type Segment,
+  type SegmentOutcome,
+} from "@ai-translate/core";
+import { errorMessage } from "../shared/errors.ts";
 import {
   PAGE_PORT,
   type BackgroundToPage,
@@ -13,9 +24,6 @@ import {
 } from "../shared/messages.ts";
 import { flipDisplayMode, loadSettings, type Settings } from "../shared/settings.ts";
 import { IdbCache } from "./cache.ts";
-import { Pipeline } from "./pipeline.ts";
-import { Scheduler } from "./scheduler.ts";
-import { LlamaServerTranslator } from "./translator.ts";
 
 let settingsMemo: Promise<Settings> | null = null;
 chrome.storage.onChanged.addListener((_changes, area) => {
@@ -25,13 +33,26 @@ const getSettings = () => (settingsMemo ??= loadSettings());
 
 const cache = new IdbCache();
 const scheduler = new Scheduler(getModelProfile(DEFAULT_MODEL_ID).parallel);
-const pipeline = new Pipeline({
-  cache,
-  scheduler,
-  getSettings,
-  createTranslator: (s) =>
-    new LlamaServerTranslator({ endpoint: s.endpoint, apiKey: s.apiKey, profile: getModelProfile(s.modelId) }),
-});
+const pipeline = new Pipeline({ cache, scheduler });
+
+/** 调度队列里的任务 id：段落 id 只在标签页内唯一 */
+const taskId = (tabId: number, segmentId: string) => `${tabId}:${segmentId}`;
+
+/** 按入队时的设置翻译一段 */
+async function translateSegment(tabId: number, segment: Segment, priority: number, signal?: AbortSignal): Promise<SegmentOutcome> {
+  const s = await getSettings();
+  const translator = new LlamaServerTranslator({ endpoint: s.endpoint, apiKey: s.apiKey, profile: getModelProfile(s.modelId) });
+  const job = {
+    taskId: taskId(tabId, segment.id),
+    segment,
+    priority,
+    source: s.source,
+    target: s.target,
+    model: s.modelId,
+    glossary: parseGlossary(s.glossaryText).entries,
+  };
+  return pipeline.translate(job, translator, signal);
+}
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PAGE_PORT) return;
@@ -55,8 +76,7 @@ chrome.runtime.onConnect.addListener((port) => {
     const controller = new AbortController();
     controllers.set(item.id, controller);
     const segment = { id: item.id, text: item.text, ...(item.markup === undefined ? {} : { markup: item.markup }) };
-    pipeline
-      .translate({ tabId, segment, priority: item.priority }, controller.signal)
+    translateSegment(tabId, segment, item.priority, controller.signal)
       .then((r) => post({ type: "result", id: item.id, text: r.text, cached: r.cached }))
       .catch((err: unknown) => {
         if (isAbortError(err)) return;
@@ -70,7 +90,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
   const cancel = (id: string) => {
     controllers.get(id)?.abort();
-    scheduler.cancel(Pipeline.taskId(tabId, id));
+    scheduler.cancel(taskId(tabId, id));
   };
 
   port.onMessage.addListener((msg: PageToBackground) => {
@@ -82,7 +102,7 @@ chrome.runtime.onConnect.addListener((port) => {
         msg.ids.forEach(cancel);
         break;
       case "priority":
-        for (const u of msg.updates) scheduler.setPriority(Pipeline.taskId(tabId, u.id), u.priority);
+        for (const u of msg.updates) scheduler.setPriority(taskId(tabId, u.id), u.priority);
         break;
     }
   });
@@ -125,8 +145,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMessage, sender, sendResponse:
       return false;
     case "translate-selection": {
       const tabId = sender.tab?.id ?? -1;
-      pipeline
-        .translate({ tabId, segment: { id: `sel-${++selectionSeq}`, text: msg.text }, priority: SELECTION_PRIORITY })
+      translateSegment(tabId, { id: `sel-${++selectionSeq}`, text: msg.text }, SELECTION_PRIORITY)
         .then((r) => sendResponse({ ok: true, text: r.text }))
         .catch((err: unknown) => {
           const e = err instanceof TranslateError ? err : new TranslateError("server", String(err));

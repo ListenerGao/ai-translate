@@ -24,3 +24,8 @@ export {
   type InlineNode,
   type ParsedNode,
 } from "./inline.ts";
+export { TranslateError, isAbortError, type TranslateErrorCode } from "./errors.ts";
+export { MemoryCache, type CacheStore } from "./cache.ts";
+export { Scheduler, type Lane, type Task } from "./scheduler.ts";
+export { Pipeline, type PipelineDeps, type PipelineJob, type SegmentOutcome } from "./pipeline.ts";
+export { LlamaServerTranslator, type LlamaServerConfig } from "./llama-server.ts";

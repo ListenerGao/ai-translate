@@ -25,6 +25,20 @@ describe("Scheduler", () => {
     assert.deepEqual(order, ["p1-a", "p1-b", "p3", "p5"]);
   });
 
+  test("interactive 通道排在 batch 前面，不管优先级数值；没写通道按 interactive", async () => {
+    const s = new Scheduler(1);
+    const gate = deferred();
+    const order: string[] = [];
+    const add = (id: string, priority: number, lane?: "interactive" | "batch") =>
+      s.enqueue({ id, priority, ...(lane === undefined ? {} : { lane }), run: async () => void order.push(id) });
+
+    const blocker = s.enqueue({ id: "blocker", priority: 0, run: () => gate.promise });
+    const rest = [add("batch-0", 0, "batch"), add("batch-1", 1, "batch"), add("page-9", 9, "interactive"), add("default-5", 5)];
+    gate.resolve();
+    await Promise.all([blocker, ...rest]);
+    assert.deepEqual(order, ["default-5", "page-9", "batch-0", "batch-1"]);
+  });
+
   test("同时运行的任务数不超过上限", async () => {
     const s = new Scheduler(2);
     let running = 0;
