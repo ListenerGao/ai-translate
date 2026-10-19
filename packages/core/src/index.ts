@@ -31,8 +31,27 @@ export {
   type InlineNode,
   type ParsedNode,
 } from "./inline.ts";
+export { parseMarkdown, type MarkdownDoc, type MarkdownUnit } from "./formats/markdown.ts";
+export { SrtFormatError, parseSrt, type SrtDoc, type SrtUnit } from "./formats/srt.ts";
 export { TranslateError, isAbortError, type TranslateErrorCode } from "./errors.ts";
 export { MemoryCache, type CacheStore } from "./cache.ts";
 export { Scheduler, type Lane, type Task } from "./scheduler.ts";
 export { Pipeline, type PipelineDeps, type PipelineJob, type SegmentOutcome } from "./pipeline.ts";
 export { LlamaServerTranslator, type LlamaServerConfig } from "./llama-server.ts";
+export {
+  AITD_API,
+  AitdError,
+  AitdTranslator,
+  aitdCall,
+  aitdHealth,
+  aitdStatus,
+  getGlossary,
+  lineError,
+  putGlossary,
+  translateLines,
+  type AitdConfig,
+  type AitdStatus,
+  type GlossarySaveResult,
+  type TranslateLine,
+  type TranslateOptions,
+} from "./aitd-client.ts";

@@ -1,6 +1,17 @@
 // 设置页：本机翻译服务地址、密钥、目标语言、显示方式、术语表（存在 aitd 里），以及「测试连接」。
-import { BUILTIN_GLOSSARY, TranslateError, checkLocalEndpoint, parseGlossary } from "@ai-translate/core";
-import { AITD_API, AitdError, AitdTranslator, aitdHealth, getGlossary, migrateGlossary, putGlossary } from "../shared/aitd.ts";
+import {
+  AITD_API,
+  AitdError,
+  AitdTranslator,
+  BUILTIN_GLOSSARY,
+  TranslateError,
+  aitdHealth,
+  checkLocalEndpoint,
+  getGlossary,
+  parseGlossary,
+  putGlossary,
+} from "@ai-translate/core";
+import { migrateGlossary } from "../shared/aitd.ts";
 import { errorMessage } from "../shared/errors.ts";
 import { loadSettings, saveSettings, type DisplayMode, type Settings } from "../shared/settings.ts";
 

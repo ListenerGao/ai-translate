@@ -1,7 +1,7 @@
 // 扩展后台（service worker）：接收网页端的段落，排队后交给本机翻译服务 aitd，按段返回译文。
 // 缓存、术语表、模型都在 aitd；这里只按视口远近排队，同时最多发 4 段（等于模型的并行槽位）。
-import { DEFAULT_MODEL_ID, Scheduler, TranslateError, getModelProfile, isAbortError, type Segment } from "@ai-translate/core";
-import { AitdError, AitdTranslator, migrateGlossary } from "../shared/aitd.ts";
+import { AitdError, AitdTranslator, DEFAULT_MODEL_ID, Scheduler, TranslateError, getModelProfile, isAbortError, type Segment } from "@ai-translate/core";
+import { migrateGlossary } from "../shared/aitd.ts";
 import { errorMessage } from "../shared/errors.ts";
 import {
   PAGE_PORT,

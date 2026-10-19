@@ -1,0 +1,91 @@
+1
+00:00:01,000 --> 00:00:03,400
+So today I want to talk about running
+【译】So today I want to talk about running
+
+2
+00:00:03,600 --> 00:00:06,000
+language models on your own laptop.
+【译】language models on your own laptop.
+
+3
+00:00:06,200 --> 00:00:08,600
+A year ago, this would have sounded crazy.
+【译】A year ago, this would have sounded crazy.
+
+4
+00:00:08,800 --> 00:00:11,200
+You needed a data center,
+or at least
+【译】You needed a data center, or at least
+
+5
+00:00:11,400 --> 00:00:13,800
+a very expensive graphics card.
+【译】a very expensive graphics card.
+
+6
+00:00:14,000 --> 00:00:16,400
+But the models got smaller,
+【译】But the models got smaller,
+
+7
+00:00:16,600 --> 00:00:19,000
+and the hardware got a lot better.
+【译】and the hardware got a lot better.
+
+8
+00:00:19,200 --> 00:00:21,600
+Now, here's the thing nobody tells you:
+【译】Now, here's the thing nobody tells you:
+
+9
+00:00:21,800 --> 00:00:24,200
+the hard part isn't the model.
+【译】the hard part isn't the model.
+
+10
+00:00:24,400 --> 00:00:26,800
+It's everything around it.
+【译】It's everything around it.
+
+11
+00:00:27,000 --> 00:00:29,400
+How do you keep it
+from eating all your memory?
+【译】How do you keep it from eating all your memory?
+
+12
+00:00:29,600 --> 00:00:32,000
+How do you make it start fast enough
+【译】How do you make it start fast enough
+
+13
+00:00:32,200 --> 00:00:34,600
+that people don't give up waiting?
+【译】that people don't give up waiting?
+
+14
+00:00:34,800 --> 00:00:37,200
+We tried three different approaches.
+【译】We tried three different approaches.
+
+15
+00:00:37,400 --> 00:00:39,800
+The first one was a disaster.
+【译】The first one was a disaster.
+
+16
+00:00:40,000 --> 00:00:42,400
+Let me show you why.
+【译】Let me show you why.
+
+17
+00:00:42,600 --> 00:00:45,000
+Under the hood, every request
+【译】Under the hood, every request
+
+18
+00:00:45,200 --> 00:00:47,600
+loaded the whole model from scratch.
+【译】loaded the whole model from scratch.

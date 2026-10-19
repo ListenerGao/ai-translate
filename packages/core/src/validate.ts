@@ -22,9 +22,14 @@ export function validateTranslation(source: string, output: string, target: stri
 
   const words = src.match(/[A-Za-z]+/g)?.length ?? 0;
   if (words >= 3 && normalize(out) === normalize(src)) return "same-as-source";
-  if (out.length > src.length * 4 + 20) return "too-long";
+  if (out.length > weightedLength(src) * 4 + 20) return "too-long";
   if (isChinese(target) && words >= 3 && !/\p{Script=Han}/u.test(out)) return "wrong-language";
   return null;
+}
+
+/** 原文长度：汉字、假名、谚文一个字顶 3 个字母（中译英的正常译文按字数算常到原文的 4 倍以上）；英文原文不受影响 */
+function weightedLength(text: string): number {
+  return text.length + 2 * (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0);
 }
 
 function normalize(text: string): string {

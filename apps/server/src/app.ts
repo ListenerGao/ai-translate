@@ -1,6 +1,7 @@
 // aitd：本机翻译服务。插件和命令行都连它；它管调度、缓存、术语表，再把段落交给模型服务。
 // 接口和安全要求见 goals/20261019-1230-4-aitd-service.md「HTTP 接口」「安全」。
 import {
+  AITD_API,
   BUILTIN_GLOSSARY,
   Pipeline,
   Scheduler,
@@ -25,8 +26,6 @@ import { HttpError, checkCaller, hasKey, readBody, sendError, sendJson } from ".
 import { Logger } from "./log.ts";
 import type { ModelBackend } from "./model.ts";
 
-/** 接口出现不兼容改动时才加 1；插件和命令行发现不认识就提示更新 */
-export const API_VERSION = 1;
 const BODY_LIMIT = 1024 * 1024;
 const MAX_SEGMENTS = 1000;
 
@@ -103,7 +102,7 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
     const route = routeName(req);
     if (route === "/health") {
       if (req.method !== "GET") throw new HttpError(405, "method", "只支持 GET");
-      return sendJson(res, 200, { status: "ok", version, api: API_VERSION });
+      return sendJson(res, 200, { status: "ok", version, api: AITD_API });
     }
     if (!hasKey(req, apiKey)) throw new HttpError(401, "unauthorized", "密钥不对：用 api-key 文件里的密钥");
 
@@ -111,7 +110,7 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
       case "GET /api/status":
         return sendJson(res, 200, {
           version,
-          api: API_VERSION,
+          api: AITD_API,
           model: await model.status(),
           queue: { pending: scheduler.pending, active: scheduler.active },
           cache: { entries: cache.size },

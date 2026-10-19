@@ -31,6 +31,12 @@ describe("validateTranslation", () => {
     assert.equal(validateTranslation(SRC, "重复".repeat(200), "zh"), "too-long");
   });
 
+  test("中译英：译文按字数常到原文的 4 倍以上，不算太长；重复刷屏照样拦下", () => {
+    const zh = "第一阶段的浏览器插件已完成，在 Chrome 开发者模式下加载使用。";
+    assert.equal(validateTranslation(zh, "The browser extension for phase one is complete and can be loaded in Chrome developer mode. ".repeat(2), "en"), null);
+    assert.equal(validateTranslation(zh, "Repeat. ".repeat(200), "en"), "too-long");
+  });
+
   test("目标是中文但输出没有一个汉字", () => {
     assert.equal(validateTranslation(SRC, "Le serveur enverra chaque jeton.", "zh"), "wrong-language");
     assert.equal(validateTranslation(SRC, "Le serveur enverra chaque jeton.", "zh-CN"), "wrong-language");

@@ -34,7 +34,13 @@ declare global {
   interface Response {
     readonly ok: boolean;
     readonly status: number;
+    readonly body: { getReader(): { read(): Promise<{ value?: Uint8Array; done: boolean }> } } | null;
     json(): Promise<unknown>;
+    text(): Promise<string>;
+  }
+
+  class TextDecoder {
+    decode(input?: Uint8Array, options?: { stream?: boolean }): string;
   }
 
   function fetch(input: string, init?: RequestInit): Promise<Response>;

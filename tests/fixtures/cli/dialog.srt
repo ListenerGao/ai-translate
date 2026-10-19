@@ -1,0 +1,47 @@
+1
+00:00:01,000 --> 00:00:03,400
+Did you push the fix last night?
+
+2
+00:00:03,600 --> 00:00:06,000
+I did, but it broke the build.
+
+3
+00:00:06,200 --> 00:00:08,600
+Again? What happened this time?
+
+4
+00:00:08,800 --> 00:00:11,200
+Someone renamed the config file
+
+5
+00:00:11,400 --> 00:00:13,800
+and forgot to tell anyone.
+
+6
+00:00:14,000 --> 00:00:16,400
+Classic. Can you roll it back?
+
+7
+00:00:16,600 --> 00:00:19,000
+Already on it.
+
+8
+00:00:19,200 --> 00:00:21,600
+Give me five minutes.
+
+9
+00:00:21,800 --> 00:00:24,200
+Take your time.
+
+10
+00:00:24,400 --> 00:00:26,800
+The demo isn't until Friday.
+
+11
+00:00:27,000 --> 00:00:29,400
+Wait, I thought it was tomorrow!
+
+12
+00:00:29,600 --> 00:00:32,000
+Nope. You're off the hook.

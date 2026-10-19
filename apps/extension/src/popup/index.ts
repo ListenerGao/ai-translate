@@ -1,8 +1,7 @@
 // 工具栏弹窗：原文 / 目标语言、模型和本机服务状态、按网站设置、显示方式切换、翻译开关。
 // 默认操作当前窗口的活动标签页；网址带 ?tab=<id> 时操作指定标签页（e2e 点不了浏览器工具栏，靠它测试）。
-import { TranslateError, checkLocalEndpoint } from "@ai-translate/core";
+import { AITD_API, TranslateError, aitdHealth, aitdStatus, checkLocalEndpoint } from "@ai-translate/core";
 import type { PageDetection } from "../content/detect.ts";
-import { AITD_API, aitdHealth, aitdStatus } from "../shared/aitd.ts";
 import { LANGUAGES, languageLabel } from "../shared/languages.ts";
 import type { RuntimeMessage, TabCommand, TabStatus } from "../shared/messages.ts";
 import { flipDisplayMode, loadSettings, saveSettings, type DisplayMode, type Settings, type SiteRule } from "../shared/settings.ts";

@@ -21,13 +21,14 @@
 
 ## 目录约定
 
-当前结构。预留的 `apps/cli`（ait）、`apps/desktop` 到对应阶段再建，不提前建空目录。
+当前结构。预留的 `apps/desktop` 到第三阶段再建，不提前建空目录。
 
 ```
-packages/core/      翻译核心：段落协议、Translator 接口与 llama-server 实现、prompt、术语表、结果校验、缓存键与缓存接口、调度队列、翻译流水线、错误码、模型配置
+packages/core/      翻译核心：段落协议、Translator 接口与 llama-server 实现、aitd 客户端、prompt、术语表、结果校验、缓存键与缓存接口、调度队列、翻译流水线、错误码、模型配置
 apps/extension/     浏览器插件：后台调度与缓存、网页端段落提取与渲染、划词翻译、英文文章检测与自动开启、工具栏弹窗、设置页
-apps/server/        aitd 本机翻译服务：HTTP 接口、鉴权、调度、SQLite 缓存、术语表文件、日志（第二阶段开发中）
-scripts/            模型下载、模型启动、图标生成脚本，译文回归检查（`qa.ts`、`qa/`）
+apps/server/        aitd 本机翻译服务：HTTP 接口、鉴权、调度、SQLite 缓存、术语表文件、日志、模型进程管理
+apps/cli/           命令行 ait：文字、标准输入、Markdown、SRT 交给 aitd 的 batch 通道（第二阶段开发中）
+scripts/            模型下载、模型启动、图标生成脚本，aitd 开机自启（`aitd-service.sh`），命令行安装（`install-cli.sh`），译文回归检查（`qa.ts`、`qa/`）
 tests/              e2e 用例、测试页面、模拟模型服务、译文回归的样例和基线（`quality/`）
 docs/               架构与说明文档
 goals/              Goal 施工清单
