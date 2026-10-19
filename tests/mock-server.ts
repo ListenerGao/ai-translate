@@ -51,7 +51,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-export async function startMockServer(options: { apiKey?: string; delayMs?: number } = {}): Promise<MockServer> {
+export async function startMockServer(options: { apiKey?: string; delayMs?: number; port?: number } = {}): Promise<MockServer> {
   let delay = options.delayMs ?? 0;
   let responder: Responder | null = null;
   let active = 0;
@@ -100,7 +100,7 @@ export async function startMockServer(options: { apiKey?: string; delayMs?: numb
     }
   });
 
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
 
   return {

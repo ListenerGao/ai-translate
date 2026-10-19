@@ -6,12 +6,33 @@ import { Pipeline, type PipelineJob } from "./pipeline.ts";
 import type { Segment, TranslateRequest, TranslateResult, Translator } from "./protocol.ts";
 import { Scheduler } from "./scheduler.ts";
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+/**
+ * 入队之前要先算缓存键（异步哈希，在线程池里算），几段同时调用时入队先后不固定。
+ * 测排队顺序的用例：先让第一段开始并占住唯一的槽位，等其余段落都排进队列再放行。
+ */
+async function waitFor(check: () => boolean): Promise<void> {
+  const deadline = Date.now() + 3000;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error("等待超时");
+    await new Promise((r) => setTimeout(r, 1));
+  }
+}
+
 class FakeTranslator implements Translator {
   calls: string[] = [];
   delayMs = 0;
+  /** 设了就等它放行再返回：让第一段一直占着槽位，直到后面的段落都排进队列 */
+  gate: Promise<void> | null = null;
   async *translate(req: TranslateRequest): AsyncIterable<TranslateResult> {
     for (const s of req.segments) {
       this.calls.push(s.text);
+      if (this.gate !== null) await this.gate;
       await new Promise((r) => setTimeout(r, this.delayMs));
       yield { id: s.id, text: `译:${s.text}`, cached: false };
     }
@@ -47,11 +68,15 @@ describe("Pipeline", () => {
   });
 
   test("通道传给调度队列：batch 排在 interactive 后面", async () => {
-    const { pipeline, translator, segmentJob } = setup("", 1);
-    translator.delayMs = 10;
+    const { pipeline, translator, scheduler, segmentJob } = setup("", 1);
+    const gate = deferred();
+    translator.gate = gate.promise;
     const first = pipeline.translate(segmentJob({ id: "a", text: "Blocking paragraph text" }));
+    await waitFor(() => scheduler.active === 1);
     const batch = pipeline.translate({ ...segmentJob({ id: "b", text: "Batch paragraph text" }, 0), lane: "batch" });
     const page = pipeline.translate(segmentJob({ id: "c", text: "Page paragraph text" }, 9));
+    await waitFor(() => scheduler.pending === 2);
+    gate.resolve();
     await Promise.all([first, batch, page]);
     assert.deepEqual(translator.calls, ["Blocking paragraph text", "Page paragraph text", "Batch paragraph text"]);
   });
@@ -82,11 +107,15 @@ describe("Pipeline", () => {
   });
 
   test("排队期间同样内容已被翻好：开始时再查缓存，不重复调用模型", async () => {
-    const { pipeline, translator, job } = setup("", 1);
-    translator.delayMs = 30;
+    const { pipeline, translator, scheduler, job } = setup("", 1);
+    const gate = deferred();
+    translator.gate = gate.promise;
     const first = pipeline.translate(job("a", "Blocking paragraph text"));
+    await waitFor(() => scheduler.active === 1);
     const queued = pipeline.translate(job("b", "Same text twice", 5));
     const jumped = pipeline.translate(job("c", "Same text twice", -1));
+    await waitFor(() => scheduler.pending === 2);
+    gate.resolve();
     await Promise.all([first, queued, jumped]);
     assert.deepEqual(translator.calls, ["Blocking paragraph text", "Same text twice"]);
   });
@@ -121,11 +150,14 @@ describe("Pipeline", () => {
 
   test("排队中的段落被撤销：AbortError，不调用模型", async () => {
     const { pipeline, translator, scheduler, job } = setup("", 1);
-    translator.delayMs = 30;
+    const gate = deferred();
+    translator.gate = gate.promise;
     const running = pipeline.translate(job("a", "First paragraph here"));
+    await waitFor(() => scheduler.active === 1);
     const queued = pipeline.translate(job("b", "Second paragraph here", 5));
-    await new Promise((r) => setTimeout(r, 5));
+    await waitFor(() => scheduler.pending === 1);
     assert.equal(scheduler.cancel("b"), true);
+    gate.resolve();
     await assert.rejects(queued, { name: "AbortError" });
     await running;
     assert.deepEqual(translator.calls, ["First paragraph here"]);

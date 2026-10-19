@@ -43,7 +43,7 @@ goals/              Goal 施工清单
 - `npm test`：单测，Node 内置测试器，文件名 `*.test.ts`
 - `npm run build`：打包插件到 `apps/extension/dist/`
 - `npm run e2e`：构建后用 Playwright 自带的 Chromium 加载插件跑 e2e；首次先 `npm run e2e:install`（浏览器装进 `node_modules`，不动全局）
-- `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790；Goal 4 CP3 之前连已在运行的 `llama-server`）
+- `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790），用到时自动启动模型（`AIT_LLAMA_PORT` 默认 8791，和 `start-model.sh` 冲突）；`AIT_MODEL_URL` 改连已在运行的模型服务
 - 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
 
 ## 文档入口

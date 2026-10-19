@@ -34,7 +34,7 @@
 - `npm run build`：打包插件
 - `npm run e2e`：用 Playwright 自带的 Chromium 加载插件跑端到端测试（首次先 `npm run e2e:install`）
 - `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字（需要模型服务在运行）
-- `npm run aitd`：前台启动本机翻译服务 aitd（第二阶段开发中，插件还没改连它；目前要先用 `scripts/start-model.sh` 开着模型服务）
+- `npm run aitd`：前台启动本机翻译服务 aitd（第二阶段开发中，插件还没改连它）。aitd 用到时自动启动模型、空闲 30 分钟停掉；模型默认用 8791 端口，和 `scripts/start-model.sh` 冲突，二选一。设 `AIT_MODEL_URL=http://127.0.0.1:8791` 则改连已经开着的模型服务
 
 目录说明见 `AGENTS.md`。
 

@@ -38,8 +38,8 @@ export interface AitdOptions {
   model: ModelBackend;
   version: string;
   cache?: SqliteCacheOptions;
-  /** 日志同时打到终端（前台运行时） */
-  echoLog?: boolean;
+  /** 共用的日志；不传就在 home/logs 下新建 */
+  log?: Logger;
 }
 
 export interface Aitd {
@@ -70,7 +70,7 @@ const ERROR_TEXT: Record<TranslateErrorCode, string> = {
 export async function startAitd(options: AitdOptions): Promise<Aitd> {
   const { apiKey, home, model, version } = options;
   mkdirSync(join(home, "logs"), { recursive: true, mode: 0o700 });
-  const log = new Logger(join(home, "logs", "aitd.log"), { echo: options.echoLog ?? false });
+  const log = options.log ?? new Logger(join(home, "logs", "aitd.log"));
   const cache = new SqliteCache(join(home, "cache.db"), options.cache);
   const glossary = new GlossaryFile(join(home, "glossary.txt"));
   // 全局一个队列，并发数等于模型服务的槽位数；插件（interactive）永远排在命令行（batch）前面
@@ -175,7 +175,7 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
           if (isAbortError(err) || controller.signal.aborted) return;
           failed++;
           const e = err instanceof TranslateError ? err : new TranslateError("server");
-          write({ id: segment.id, error: { code: e.code, message: e.detail === "" ? ERROR_TEXT[e.code] : `${ERROR_TEXT[e.code]}（${e.detail}）` } });
+          write({ id: segment.id, error: { code: e.code, message: e.detail === "" ? ERROR_TEXT[e.code] : `${ERROR_TEXT[e.code]}：${e.detail}` } });
         }
       }),
     );
