@@ -39,6 +39,10 @@
     "toggle-translate": {
       "suggested_key": { "default": "Alt+T" },
       "description": "翻译此页 / 还原"
+    },
+    "toggle-display-mode": {
+      "suggested_key": { "default": "Alt+Shift+M" },
+      "description": "切换双语对照 / 仅译文"
     }
   }
 }

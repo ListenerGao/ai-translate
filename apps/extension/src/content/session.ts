@@ -6,6 +6,7 @@ import { loadSettings, type Settings } from "../shared/settings.ts";
 import { BlockFinder, viewportDistance } from "./blocks.ts";
 import { isShortText } from "./text-rules.ts";
 import {
+  applyDisplayMode,
   clearPending,
   clearView,
   ensureStyle,
@@ -211,7 +212,9 @@ export class PageSession {
   #onSettingsChanged = (_changes: unknown, area: string): void => {
     if (area !== "local" || !this.#active) return;
     void loadSettings().then((s) => {
+      const modeChanged = s.displayMode !== this.#settings?.displayMode;
       this.#settings = s;
+      if (modeChanged) for (const block of this.#blocks.values()) applyDisplayMode(block, s.displayMode);
       hideBanner();
       this.#requeueVisible();
     });

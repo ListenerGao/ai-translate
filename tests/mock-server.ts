@@ -68,6 +68,10 @@ export async function startMockServer(options: { apiKey?: string; delayMs?: numb
       res.writeHead(204, CORS).end();
       return;
     }
+    if (req.method === "GET" && req.url === "/health") {
+      send(200, { status: "ok" });
+      return;
+    }
     if (req.method !== "POST" || req.url !== "/v1/chat/completions") {
       send(404, { error: "not found" });
       return;

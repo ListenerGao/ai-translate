@@ -4,7 +4,7 @@
 
 ## 红线
 
-- 翻译内容不得发往本机以外的地址。允许的外网请求只有下载模型和安装依赖；不接入任何在线翻译 API（包括 Index-Translate 官方免费 API），除非主人明确要求。插件代码必须校验模型服务地址的主机是 `127.0.0.1` 或 `localhost`，不是就拒绝发送。
+- 翻译内容不得发往本机以外的地址。允许的外网请求只有下载模型和安装依赖；不接入任何在线翻译 API（包括 Index-Translate 官方免费 API），除非主人明确要求。插件代码必须校验模型服务地址的主机是 `127.0.0.1` 或 `localhost`，不是就拒绝发送。划词朗读只用本机语音（`SpeechSynthesisVoice.localService` 为 true），不用 Chrome 的联网语音。
 - 本地模型服务只监听 `127.0.0.1`，必须带 API 密钥。密钥只存放在 `~/Library/Application Support/ai-translate/api-key`（权限 600）和插件的 `chrome.storage.local`，不进代码、仓库、日志和截图。
 - 模型文件（`*.gguf`）不进仓库，统一放 `~/Library/Application Support/ai-translate/models/`。
 - 不改全局 npm 配置和全局 Node 版本：Node 版本由 `.nvmrc` 指定，npm 源由项目 `.npmrc` 指定。

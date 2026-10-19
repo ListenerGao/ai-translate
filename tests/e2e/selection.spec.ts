@@ -25,7 +25,8 @@ async function select(page: Page, selector: string): Promise<string> {
   }, selector);
 }
 
-const icon = (page: Page) => page.locator("ait-selection .icon");
+const icon = (page: Page) => page.locator("ait-selection .translate");
+const speak = (page: Page) => page.locator("ait-selection .speak");
 const bubble = (page: Page) => page.locator("ait-selection .bubble");
 
 test.describe("划词翻译", () => {
@@ -101,15 +102,45 @@ test.describe("划词翻译", () => {
     await expect(icon(page)).toBeHidden();
   });
 
+  test("8 选中后旁边还有朗读图标：不用先翻译，点了读原文、不发翻译请求，再点停止", async ({ context, mock, site }) => {
+    const page = await context.newPage();
+    await page.goto(`${site}/selection.html`);
+    await select(page, "#p2");
+    await expect(speak(page)).toBeVisible();
+    await speak(page).click();
+    // 用的是本机语音：按钮标题写明语音名
+    await expect(speak(page)).toHaveAttribute("title", /^朗读原文（.+）$/);
+    await expect(speak(page)).toHaveAttribute("aria-pressed", "true");
+    await speak(page).click();
+    await expect(speak(page)).toHaveAttribute("aria-pressed", "false");
+    await expect(bubble(page)).toBeHidden();
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  test("9 朗读中点别处：朗读停止；按 Esc：图标收起", async ({ context, site }) => {
+    const page = await context.newPage();
+    await page.goto(`${site}/selection.html`);
+    await select(page, "#p2");
+    await speak(page).click();
+    await expect(speak(page)).toHaveAttribute("aria-pressed", "true");
+    // 在网页别处按下鼠标就停止朗读
+    await page.click("#zh");
+    await expect(speak(page)).toHaveAttribute("aria-pressed", "false");
+    await page.keyboard.press("Escape");
+    await expect(speak(page)).toBeHidden();
+  });
+
   test("7 网页自己的样式改不了图标和气泡的外观", async ({ context, site }) => {
     const page = await context.newPage();
     await page.goto(`${site}/selection.html`);
     await select(page, "#p1");
-    const iconStyle = await icon(page).evaluate((el) => {
+    // 两个图标在同一条蓝色工具条里，图标是白色
+    const toolsStyle = await page.locator("ait-selection .tools").evaluate((el) => {
       const s = getComputedStyle(el);
-      return { color: s.color, background: s.backgroundColor, fontSize: s.fontSize };
+      const icons = [...el.querySelectorAll(".icon")].map((b) => getComputedStyle(b).color);
+      return { background: s.backgroundColor, display: s.display, icons };
     });
-    expect(iconStyle).toEqual({ color: "rgb(255, 255, 255)", background: "rgb(39, 83, 200)", fontSize: "13px" });
+    expect(toolsStyle).toEqual({ background: "rgb(39, 83, 200)", display: "flex", icons: ["rgb(255, 255, 255)", "rgb(255, 255, 255)"] });
     await icon(page).click();
     const bubbleStyle = await bubble(page).evaluate((el) => {
       const s = getComputedStyle(el);

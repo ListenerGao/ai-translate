@@ -16,7 +16,7 @@ interface Fixtures {
   extensionId: string;
   /** 模拟模型服务，每个用例一个 */
   mock: MockServer;
-  /** 测试页面所在的地址 */
+  /** 测试页面所在的地址（插件已就绪） */
   site: string;
 }
 
@@ -48,7 +48,10 @@ export const test = base.extend<Fixtures>({
     await use(mock);
     await mock.close();
   },
-  site: async ({}, use) => {
+  // 依赖 background：等插件装好、关掉自动翻译后再开网页。
+  // 否则安装时补注入的 content script 会在用例操作中途替换掉原来的实例。
+  site: async ({ background }, use) => {
+    void background;
     const server = await startStaticServer(fixturesPath);
     await use(server.url);
     await server.close();

@@ -42,6 +42,14 @@ export async function loadSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...stored } as Settings;
 }
 
+/** 双语对照 ↔ 仅译文，返回切换后的方式。快捷键和弹窗都走这里；已打开的页面监听设置变化，立即跟着切换 */
+export async function flipDisplayMode(): Promise<DisplayMode> {
+  const { displayMode } = await loadSettings();
+  const next: DisplayMode = displayMode === "bilingual" ? "translation-only" : "bilingual";
+  await saveSettings({ displayMode: next });
+  return next;
+}
+
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   await chrome.storage.local.set(patch);
 }

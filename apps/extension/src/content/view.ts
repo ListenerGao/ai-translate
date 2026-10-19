@@ -163,10 +163,6 @@ export function showPending(view: BlockView, target: string): void {
 }
 
 export function showResult(view: BlockView, text: string, target: string, mode: DisplayMode): void {
-  if (mode === "translation-only" && !view.el.classList.contains("ait-only")) {
-    view.el.style.setProperty("--ait-font-size", getComputedStyle(view.el).fontSize);
-    view.el.classList.add("ait-only");
-  }
   const node = ensureNode(view, target);
   node.dataset.state = "done";
   // 带标记的译文还原成带链接、加粗的元素；退回了纯文本翻译的段落没有标记，按文字显示
@@ -175,6 +171,29 @@ export function showResult(view: BlockView, text: string, target: string, mode: 
   else node.textContent = view.markup === null ? text : stripMarkers(text);
   // 有格式的段落标出结果：kept 保住了格式，plain 退回了纯文本（排查和统计用）
   if (view.markup !== null) node.dataset.markup = parsed !== null ? "kept" : "plain";
+  applyDisplayMode(view, mode);
+}
+
+/**
+ * 对已出的译文应用显示方式，切换时立即生效：
+ * 仅译文 -- 隐藏原文、译文放原文位置；双语对照 -- 撤回隐藏，短文本重新判断能不能放在同一行右边
+ */
+export function applyDisplayMode(view: BlockView, mode: DisplayMode): void {
+  const node = view.node;
+  if (node === null || node.dataset.state !== "done") return;
+  if (mode === "translation-only") {
+    if (!view.el.classList.contains("ait-only")) {
+      view.el.style.setProperty("--ait-font-size", getComputedStyle(view.el).fontSize);
+      view.el.classList.add("ait-only");
+    }
+    node.dataset.layout = "block";
+    return;
+  }
+  view.el.classList.remove("ait-only");
+  view.el.style.removeProperty("--ait-font-size");
+  if (!view.hadClassAttr && view.el.getAttribute("class") === "") view.el.removeAttribute("class");
+  if (!view.hadStyleAttr && view.el.getAttribute("style") === "") view.el.removeAttribute("style");
+  node.dataset.layout = view.inline && ownTextLines(view.el, node).count === 1 ? "inline" : "block";
   settleLayout(view, node, mode);
 }
 

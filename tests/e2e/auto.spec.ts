@@ -74,30 +74,46 @@ test.describe("英文文章页自动开启", () => {
   });
 });
 
-test("弹窗：显示状态和检测结果，切换翻译，按网站设置跟着生效", async ({ context, background, extensionId, mock, site }) => {
+test("弹窗：语言、模型状态、翻译开关、显示方式立即生效、按网站设置", async ({ context, background, extensionId, mock, site }) => {
   const page = await context.newPage();
   await page.goto(`${site}/long-article.html`);
   const tabId = await tabIdOf(background, page.url());
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html?tab=${tabId}`);
 
-  await expect(popup.locator("#state")).toHaveText("这个页面未翻译");
+  await expect(popup.locator("#toggle-label")).toHaveText("翻译");
+  await expect(popup.locator("#source-label")).toHaveText("英语 (English)");
+  await expect(popup.locator("#source-sub")).toHaveText("自动检测");
+  await expect(popup.locator("#target-label")).toHaveText("简体中文 (Simplified Chinese)");
+  await expect(popup.locator("#status")).toHaveText("本机已连接");
   await expect(popup.locator("#detect")).toContainText("英文文章");
-  await expect(popup.locator("#host")).toHaveText(HOST);
-  await expect(popup.locator("#rule-auto")).toBeChecked();
+  await expect(popup.locator("#site-rule")).toHaveValue("auto");
 
+  // 翻译开关
   await popup.click("#toggle");
-  await expect(popup.locator("#state")).toHaveText("正在翻译这个页面");
+  await expect(popup.locator("#toggle-label")).toHaveText("还原");
   await settle(mock, page);
   expect(await translatedIds(page)).toContain("p1");
 
-  // 选「从不翻译」：记下规则，当前页面跟着还原
-  await popup.check("#rule-never");
-  await expect(popup.locator("#state")).toHaveText("这个页面未翻译");
+  // 显示方式：切到仅译文，已出的译文立即生效；再切回双语对照
+  await popup.click("#mode");
+  await expect(popup.locator("#mode-tip-text")).toContainText("当前为仅译文");
+  expect(await background.evaluate(() => chrome.storage.local.get("displayMode"))).toEqual({ displayMode: "translation-only" });
+  await expect(page.locator("#p1")).toHaveClass(/ait-only/);
+  await popup.click("#mode");
+  await expect(popup.locator("#mode-tip-text")).toContainText("当前为双语对照");
+  await expect(page.locator("#p1")).not.toHaveClass(/ait-only/);
+
+  // 选「从不翻译」：记下规则，当前页面跟着还原；改回「自动」规则删掉
+  await popup.selectOption("#site-rule", "never");
+  await expect(popup.locator("#toggle-label")).toHaveText("翻译");
   expect(await background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: { [HOST]: "never" } });
   await expect(page.locator("ait-translation")).toHaveCount(0);
-
-  // 改回「自动」：规则删掉
-  await popup.check("#rule-auto");
+  await popup.selectOption("#site-rule", "auto");
   await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: {} });
+
+  // 改目标语言
+  await popup.selectOption("#target", "ja");
+  await expect(popup.locator("#target-label")).toHaveText("日语 (日本語)");
+  expect(await background.evaluate(() => chrome.storage.local.get("target"))).toEqual({ target: "ja" });
 });

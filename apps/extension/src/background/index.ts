@@ -11,7 +11,7 @@ import {
   type TabCommand,
   type TabStatus,
 } from "../shared/messages.ts";
-import { loadSettings, type Settings } from "../shared/settings.ts";
+import { flipDisplayMode, loadSettings, type Settings } from "../shared/settings.ts";
 import { IdbCache } from "./cache.ts";
 import { Pipeline } from "./pipeline.ts";
 import { Scheduler } from "./scheduler.ts";
@@ -145,6 +145,7 @@ async function setBadge(tabId: number, active: boolean): Promise<void> {
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command === "toggle-translate" && tab?.id !== undefined) void toggleTab(tab.id);
+  if (command === "toggle-display-mode") void flipDisplayMode();
 });
 
 // 安装或更新后，给已经打开的网页补注入 content script，免得要刷新

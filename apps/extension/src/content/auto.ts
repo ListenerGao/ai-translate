@@ -1,6 +1,7 @@
 // 英文文章页自动开启翻译：页面加载完、单页应用切换地址后各检测一次。检测只在本地做，不发请求。
 import type { RuntimeMessage } from "../shared/messages.ts";
 import { loadSettings } from "../shared/settings.ts";
+import { extensionAlive } from "./alive.ts";
 import { detectPage } from "./detect.ts";
 import type { PageSession } from "./session.ts";
 
@@ -39,6 +40,10 @@ export class AutoOpener {
   /** 按网站规则和检测结果决定要不要开启：「从不翻译」不开，「总是翻译」直接开，否则英文文章才开 */
   async #check(allowRetry: boolean): Promise<void> {
     if (this.#disposed || this.#session.active) return;
+    if (!extensionAlive()) {
+      this.dispose(); // 插件已重新加载或停用：停掉换地址检测，不再读设置
+      return;
+    }
     const settings = await loadSettings();
     if (!settings.autoTranslate) return;
     const rule = settings.siteRules[location.hostname];

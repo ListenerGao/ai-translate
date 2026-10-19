@@ -4,45 +4,132 @@
 <meta charset="utf-8">
 <title>AI Translate</title>
 <style>
+  /* 参考常见翻译插件的弹窗：顶部两张语言卡片，中间模型和网站规则，底部左边切换显示方式的方形按钮、右边黑色的「翻译」大按钮 */
   :root {
-    --bg: #ffffff; --fg: #18202c; --muted: #5a6375; --line: #d5dae3; --accent: #2753c8; --accent-fg: #ffffff;
+    --bg: #ffffff; --card: #ffffff; --fg: #18202c; --muted: #6b7385; --line: #e1e4ea; --hover: #f4f5f8;
+    --primary: #141414; --primary-fg: #ffffff; --key: #3a3a3a; --key-fg: #ffffff;
+    --ok: #16a34a; --bad: #dc2626; --warn: #d97706;
+    --font: -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #171c25; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c; --accent: #86a5ff; --accent-fg: #0f131a; color-scheme: dark; }
+    :root {
+      --bg: #17191d; --card: #1f2227; --fg: #e8eaee; --muted: #9aa1ae; --line: #33373e; --hover: #262a30;
+      --primary: #f2f3f5; --primary-fg: #141414; --key: #d4d6db; --key-fg: #141414;
+      --ok: #4ade80; --bad: #f87171; --warn: #fbbf24;
+      color-scheme: dark;
+    }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; width: 300px; background: var(--bg); color: var(--fg); font: 13px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
-  main { padding: 14px 16px 12px; display: grid; gap: 12px; }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  #state { font-weight: 600; }
-  #detect, .host { color: var(--muted); font-size: 12px; margin: 0; }
-  button { font: inherit; border-radius: 7px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  fieldset { margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
-  legend { padding: 0; font-weight: 600; }
-  fieldset label { display: flex; align-items: center; gap: 6px; }
-  .links { border-top: 1px solid var(--line); padding-top: 10px; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  body { margin: 0; width: 340px; background: var(--bg); color: var(--fg); font: 13px/1.5 var(--font); }
+  main { padding: 14px 16px 16px; display: grid; gap: 14px; }
+  button, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid #2753c8; outline-offset: 2px; }
+
+  .top { display: flex; align-items: center; gap: 8px; }
+  .top img { width: 20px; height: 20px; border-radius: 5px; }
+  .brand { font-weight: 600; flex: 1; }
+  .icon-btn { all: unset; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--muted); cursor: pointer; }
+  .icon-btn:hover { background: var(--hover); color: var(--fg); }
+
+  .langs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+  .lang { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 6px;
+    padding: 9px 10px 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .lang:hover { background: var(--hover); }
+  .lang:focus-within { outline: 2px solid #2753c8; outline-offset: 2px; }
+  .lang-main { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lang-sub { grid-column: 1; color: var(--muted); font-size: 12px; }
+  .lang svg { grid-column: 2; grid-row: 1 / span 2; color: var(--muted); }
+  .lang select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .arrow { color: var(--muted); }
+
+  .rows { display: grid; gap: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
+  .row-label { font-weight: 600; }
+  .model { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .model-name { white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot[data-state="ok"] { background: var(--ok); }
+  .dot[data-state="bad"] { background: var(--bad); }
+  .dot[data-state="warn"] { background: var(--warn); }
+  .status { color: var(--muted); white-space: nowrap; }
+  .mini-select { border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: var(--card); max-width: 190px; cursor: pointer; }
+  .mini-select:disabled { opacity: 0.5; cursor: default; }
+  .hint { margin: -4px 0 0; color: var(--muted); font-size: 12px; }
+
+  .actions { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
+  .square { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); cursor: pointer; }
+  .square:hover { background: var(--hover); }
+  .square[aria-pressed="true"] { border-color: var(--fg); }
+  .tip { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 1; display: grid; gap: 8px; padding: 10px 12px; border-radius: 10px;
+    background: #141414; color: #fff; font-size: 13px; line-height: 1.5; white-space: nowrap; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    opacity: 0; visibility: hidden; transform: translateY(4px); transition: opacity 0.15s, transform 0.15s, visibility 0.15s; }
+  .square:hover + .tip, .square:focus-visible + .tip { opacity: 1; visibility: visible; transform: none; }
+  .tip .keys kbd { background: #3a3a3a; color: #fff; }
+  .primary { display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; border: 0; border-radius: 12px;
+    background: var(--primary); color: var(--primary-fg); font-size: 15px; font-weight: 600; cursor: pointer; }
+  .primary:disabled { opacity: 0.4; cursor: default; }
+  .keys { display: flex; gap: 4px; }
+  .keys:empty { display: none; }
+  kbd { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 6px; background: var(--key); color: var(--key-fg);
+    font: 500 12px/1 var(--font); }
+  @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
 </style>
 </head>
 <body>
 <main>
-  <div class="row">
-    <span id="state">读取中…</span>
-    <button id="toggle" type="button" disabled>翻译此页</button>
-  </div>
-  <p id="detect"></p>
-  <fieldset id="rules" disabled>
-    <legend>这个网站</legend>
-    <p class="host" id="host"></p>
-    <label><input type="radio" name="rule" value="auto" id="rule-auto"> 自动（英文文章才翻译）</label>
-    <label><input type="radio" name="rule" value="always" id="rule-always"> 总是翻译</label>
-    <label><input type="radio" name="rule" value="never" id="rule-never"> 从不翻译</label>
-  </fieldset>
-  <div class="links"><a href="#" id="options">设置</a></div>
+  <header class="top">
+    <img src="icons/icon-32.png" alt="">
+    <span class="brand">AI Translate</span>
+    <button class="icon-btn" id="options" type="button" title="设置" aria-label="打开设置">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <section class="langs">
+    <label class="lang">
+      <span class="lang-main" id="source-label">自动检测</span>
+      <span class="lang-sub" id="source-sub">自动检测</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      <select id="source" aria-label="原文语言"></select>
+    </label>
+    <span class="arrow" aria-hidden="true">→</span>
+    <label class="lang">
+      <span class="lang-main" id="target-label">简体中文</span>
+      <span class="lang-sub">目标语言</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      <select id="target" aria-label="目标语言"></select>
+    </label>
+  </section>
+
+  <section class="rows">
+    <div class="row">
+      <span class="row-label">模型</span>
+      <span class="model"><span class="dot" id="dot"></span><span class="model-name">Index-Translate-2B</span><span class="status" id="status">检查中…</span></span>
+    </div>
+    <div class="row">
+      <label class="row-label" for="site-rule">当前网站</label>
+      <select class="mini-select" id="site-rule" disabled>
+        <option value="auto">自动（英文文章才翻译）</option>
+        <option value="always">总是翻译</option>
+        <option value="never">从不翻译</option>
+      </select>
+    </div>
+    <p class="hint" id="detect"></p>
+  </section>
+
+  <section class="actions">
+    <button class="square" id="mode" type="button" aria-pressed="false" aria-describedby="mode-tip">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="2.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5"/>
+        <text x="8.5" y="11.6" text-anchor="middle" font-size="8" font-weight="600" fill="currentColor" font-family="PingFang SC, sans-serif">文</text>
+        <rect x="9.5" y="9.5" width="12" height="12" rx="2.5" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="15.5" y="18.6" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" font-family="-apple-system, sans-serif">A</text>
+      </svg>
+    </button>
+    <div class="tip" role="tooltip" id="mode-tip"><span id="mode-tip-text"></span><span class="keys" id="mode-keys"></span></div>
+    <button class="primary" id="toggle" type="button" disabled><span id="toggle-label">翻译</span><span class="keys" id="toggle-keys"></span></button>
+  </section>
 </main>
 <script type="module" src="popup.js"></script>
 </body>
