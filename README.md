@@ -28,7 +28,7 @@
 
 ### 命令行
 
-在终端里用本机模型翻译，和插件共用 aitd 的缓存和术语表；批量请求排在插件后面。先按上面第 1~3 步装好并启动 aitd。
+在终端里用本机模型翻译，和插件共用 aitd 的缓存和术语表；批量请求排在插件后面，最多占模型 4 路里的 3 路，留 1 路给插件。先按上面第 1~3 步装好并启动 aitd。
 
 - 安装：`scripts/install-cli.sh install`，在 `~/.local/bin/ait` 放一个启动脚本（固定用 `.nvmrc` 的 Node 22，不受终端默认 Node 影响）；`scripts/install-cli.sh uninstall` 卸载。改了代码后 `npm run build`，`ait` 才会用上新代码；升级 Node 后重新 install
 - `ait "Hello world"`、`pbpaste | ait`：翻一段文字（空行分段），译文打到终端

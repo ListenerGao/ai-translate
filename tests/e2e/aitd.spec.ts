@@ -90,7 +90,8 @@ test("5 命令行批量翻译 50 段的同时滑动翻译：视口内的段落�
     headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ segments, target: "zh", model: "index-translate-2b", lane: "batch" }),
   }).then((r) => r.text());
-  await expect.poll(() => mock.inflight()).toBe(4);
+  // batch 最多占 3 路，第 4 路留给插件
+  await expect.poll(() => mock.inflight()).toBe(3);
 
   const page = await context.newPage();
   await page.goto(`${site}/long-article.html`);

@@ -152,24 +152,22 @@ describe("aitd", () => {
     assert.equal(mock.requests.length, 4);
   });
 
-  test("5 batch 排着 20 段时来一个 interactive 请求：它是下一个执行的", async () => {
-    // 正在翻的 4 段 batch 错开 60 毫秒结束：每次只空出一个槽位，才能看清下一个开始的是谁
-    //（同时空出几个槽位时，几个请求到达模拟服务的先后不固定）
-    mock.setResponder((req) => {
-      const n = /^Batch paragraph number (\d+)\./.exec(req.source);
-      if (n === null) return { delayMs: 10 };
-      const i = Number(n[1]);
-      return { delayMs: 300 + (i < 4 ? i * 60 : 0) };
-    });
+  test("5 batch 排着 20 段：最多同时占 3 路，留 1 路给插件；interactive 请求来了马上开始，不用等 batch 让出", async () => {
+    mock.setResponder((req) => ({ delayMs: req.source.startsWith("Batch paragraph") ? 300 : 10 }));
     const batch = translate(
       Array.from({ length: 20 }, (_, i) => seg(`b${i}`, `Batch paragraph number ${i}.`)),
       { lane: "batch" },
     );
-    await waitFor(() => mock.inflight() === 4);
+    await waitFor(() => mock.inflight() === 3);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(mock.inflight(), 3, "第 4 路空着，留给插件");
+    const started = performance.now();
     const page = await translate([seg("v1", "Visible paragraph on screen.")]);
     assert.equal(page.lines[0]?.text, "【译】Visible paragraph on screen.");
+    assert.ok(performance.now() - started < 200, "不用等 300 毫秒的 batch 段落让出");
+    assert.equal(mock.requests.findIndex((r) => r.source === "Visible paragraph on screen."), 3);
     await batch;
-    assert.equal(mock.requests.findIndex((r) => r.source === "Visible paragraph on screen."), 4);
+    assert.equal(mock.maxConcurrent(), 4);
   });
 
   test("6 相同内容的两个请求同时到：模型只收到一次", async () => {

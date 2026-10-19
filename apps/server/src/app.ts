@@ -74,8 +74,9 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
   const log = options.log ?? new Logger(join(home, "logs", "aitd.log"));
   const cache = new SqliteCache(join(home, "cache.db"), options.cache);
   const glossary = new GlossaryFile(join(home, "glossary.txt"));
-  // 全局一个队列，并发数等于模型服务的槽位数；插件（interactive）永远排在命令行（batch）前面
-  const scheduler = new Scheduler(model.profile.parallel);
+  // 全局一个队列，并发数等于模型服务的槽位数；插件（interactive）永远排在命令行（batch）前面，
+  // 而且 batch 最多占到少 1 路，留 1 路给插件：命令行批量翻时，插件的请求来了马上开始，不用等 batch 让出（主人 2026-10-19 定）
+  const scheduler = new Scheduler(model.profile.parallel, { batchLimit: Math.max(1, model.profile.parallel - 1) });
   const pipeline = new Pipeline({ cache, scheduler });
   // 真要调用模型时才去拿 Translator：缓存命中不会唤醒休眠中的模型（CP3）
   const translator: Translator = { translate: (req, signal) => viaModel(model, req, signal) };

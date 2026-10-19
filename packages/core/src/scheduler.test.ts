@@ -117,7 +117,67 @@ describe("Scheduler", () => {
     assert.deepEqual(order, ["2:c", "1:a"]);
   });
 
-  test("并发上限必须是正整数", () => {
+  test("并发上限必须是正整数；batchLimit 在 1 到并发上限之间", () => {
     assert.throws(() => new Scheduler(0), RangeError);
+    assert.throws(() => new Scheduler(4, { batchLimit: 0 }), RangeError);
+    assert.throws(() => new Scheduler(4, { batchLimit: 5 }), RangeError);
+    assert.equal(new Scheduler(4).batchLimit, 4);
+  });
+});
+
+describe("Scheduler batchLimit", () => {
+  /** 往队列里放 n 个卡在 gate 上的任务，记录同时运行的峰值 */
+  function blocked(s: Scheduler, prefix: string, n: number, lane: "interactive" | "batch") {
+    const gate = deferred();
+    const stats = { running: 0, peak: 0 };
+    const tasks = Array.from({ length: n }, (_, i) =>
+      s.enqueue({
+        id: `${prefix}${i}`,
+        priority: i,
+        lane,
+        run: async () => {
+          stats.peak = Math.max(stats.peak, ++stats.running);
+          await gate.promise;
+          stats.running--;
+        },
+      }),
+    );
+    return { gate, stats, all: Promise.all(tasks) };
+  }
+
+  test("batch 同时最多跑 batchLimit 个；空着的槽位留给 interactive，来了马上开始", async () => {
+    const s = new Scheduler(4, { batchLimit: 3 });
+    const batch = blocked(s, "b", 10, "batch");
+    await tick();
+    assert.equal(s.active, 3);
+    assert.equal(s.pending, 7);
+    // batch 全都卡着，interactive 照样能跑完
+    assert.equal(await s.enqueue({ id: "page", priority: 0, lane: "interactive", run: async () => "done" }), "done");
+    batch.gate.resolve();
+    await batch.all;
+    assert.equal(batch.stats.peak, 3);
+  });
+
+  test("interactive 能用满全部槽位，batch 等它们让出", async () => {
+    const s = new Scheduler(4, { batchLimit: 3 });
+    const page = blocked(s, "p", 4, "interactive");
+    const batch = blocked(s, "b", 2, "batch");
+    batch.gate.resolve();
+    await tick();
+    assert.equal(s.active, 4);
+    assert.equal(batch.stats.peak, 0);
+    page.gate.resolve();
+    await Promise.all([page.all, batch.all]);
+    assert.equal(page.stats.peak, 4);
+  });
+
+  test("不设 batchLimit（插件端）：batch 也能用满全部槽位，行为不变", async () => {
+    const s = new Scheduler(4);
+    const batch = blocked(s, "b", 6, "batch");
+    await tick();
+    assert.equal(s.active, 4);
+    batch.gate.resolve();
+    await batch.all;
+    assert.equal(batch.stats.peak, 4);
   });
 });
