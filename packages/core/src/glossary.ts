@@ -1,5 +1,17 @@
 import type { GlossaryEntry } from "./protocol.ts";
 
+/**
+ * 内置术语：模型常译错、换个语境意思也不变的少量技术术语（2026-10-19 译文质量评估后加）。
+ * 和用户的术语表合并使用，用户写了同一个原文时以用户的为准。
+ * 只放含义固定的词：一词多义的（如 resolve、disposable）放进来会把别的语境带错。
+ */
+export const BUILTIN_GLOSSARY: readonly GlossaryEntry[] = [
+  { from: "mockup", to: "设计稿" },
+  { from: "single source of truth", to: "单一事实来源" },
+  { from: "sequence transduction", to: "序列转导" },
+  { from: "under the hood", to: "底层" },
+];
+
 export interface GlossaryError {
   /** 从 1 开始的行号 */
   line: number;
@@ -57,4 +69,10 @@ function termPattern(term: string): RegExp {
   const start = /^\w/.test(term) ? "\\b" : "";
   const end = /\w$/.test(term) ? "\\b" : "";
   return new RegExp(`${start}${escaped}${end}`, "i");
+}
+
+/** 合并术语：前面的优先，同一原文（忽略大小写）只留一条 */
+export function mergeGlossary(primary: readonly GlossaryEntry[], secondary: readonly GlossaryEntry[]): GlossaryEntry[] {
+  const seen = new Set(primary.map((e) => e.from.trim().toLowerCase()));
+  return [...primary, ...secondary.filter((e) => !seen.has(e.from.trim().toLowerCase()))];
 }

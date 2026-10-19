@@ -242,4 +242,30 @@ test.describe("划词翻译", () => {
     await expect(card(page).locator(".copy")).toHaveAttribute("title", "已复制");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`【译】${text}`);
   });
+
+  test("14 内置术语：划词含 mockup 时带上内置术语，自己写了同名术语以自己的为准；设置页列出内置术语", async ({ context, background, extensionId, mock, site }) => {
+    const page = await context.newPage();
+    await page.goto(`${site}/selection.html`);
+    await page.evaluate(() => {
+      document.querySelector("#p1")!.textContent = "Start with the mockup and refine it.";
+      document.querySelector("#p2")!.textContent = "Review the mockup again before coding.";
+    });
+    await select(page, "#p1");
+    await icon(page).click();
+    await expect(card(page).locator(".text")).toHaveAttribute("data-state", "done");
+    expect(mock.requests[0]!.prompt).toContain("mockup→设计稿");
+
+    await background.evaluate(() => chrome.storage.local.set({ glossaryText: "mockup=原型图" }));
+    await page.keyboard.press("Escape");
+    await select(page, "#p2");
+    await icon(page).click();
+    await expect.poll(() => mock.requests.length).toBe(2);
+    expect(mock.requests[1]!.prompt).toContain("mockup→原型图");
+    expect(mock.requests[1]!.prompt).not.toContain("设计稿");
+
+    const options = await context.newPage();
+    await options.goto(`chrome-extension://${extensionId}/options.html`);
+    await expect(options.locator("#builtin-glossary")).toContainText("mockup=设计稿");
+    await expect(options.locator("#builtin-glossary")).toContainText("single source of truth=单一事实来源");
+  });
 });

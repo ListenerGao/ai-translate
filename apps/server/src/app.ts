@@ -1,11 +1,13 @@
 // aitd：本机翻译服务。插件和命令行都连它；它管调度、缓存、术语表，再把段落交给模型服务。
 // 接口和安全要求见 goals/20261019-1230-4-aitd-service.md「HTTP 接口」「安全」。
 import {
+  BUILTIN_GLOSSARY,
   Pipeline,
   Scheduler,
   TranslateError,
   isAbortError,
   languageName,
+  mergeGlossary,
   type GlossaryEntry,
   type Lane,
   type Segment,
@@ -18,7 +20,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { SqliteCache, type SqliteCacheOptions } from "./cache.ts";
-import { GlossaryFile, mergeGlossary } from "./glossary.ts";
+import { GlossaryFile } from "./glossary.ts";
 import { HttpError, checkCaller, hasKey, readBody, sendError, sendJson } from "./http.ts";
 import { Logger } from "./log.ts";
 import type { ModelBackend } from "./model.ts";
@@ -137,7 +139,8 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
     const body = parseTranslateBody(await readBody(req, BODY_LIMIT), model.profile.id);
     const id = ++requestSeq;
     const started = performance.now();
-    const terms = mergeGlossary(body.glossary, glossary.entries);
+    // 术语优先级：请求自带（命令行 --glossary）> 术语表文件 > 内置术语
+    const terms = mergeGlossary(body.glossary, mergeGlossary(glossary.entries, BUILTIN_GLOSSARY));
     const taskIds = body.segments.map((s) => `${id}:${s.id}`);
     const controller = new AbortController();
     res.on("close", () => {

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { SqliteCache } from "./cache.ts";
-import { GlossaryFile, mergeGlossary } from "./glossary.ts";
+import { GlossaryFile } from "./glossary.ts";
 import { Logger } from "./log.ts";
 
 let dir: string;
@@ -54,11 +54,6 @@ describe("GlossaryFile", () => {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(file, "token=词元\nbroken line\nprompt=提示词");
     assert.deepEqual(new GlossaryFile(file).entries.map((e) => e.from), ["token", "prompt"]);
-  });
-
-  test("合并术语：请求带的优先，同一原文忽略大小写只留一条", () => {
-    const merged = mergeGlossary([{ from: "Token", to: "令牌" }], [{ from: "token", to: "词元" }, { from: "prompt", to: "提示词" }]);
-    assert.deepEqual(merged, [{ from: "Token", to: "令牌" }, { from: "prompt", to: "提示词" }]);
   });
 });
 

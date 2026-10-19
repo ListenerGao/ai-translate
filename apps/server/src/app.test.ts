@@ -210,6 +210,17 @@ describe("aitd", () => {
     assert.doesNotMatch(mock.requests[1]!.prompt, /词元/);
   });
 
+  test("内置术语：没写术语表也会带上；术语表文件、请求自带的同名术语依次优先", async () => {
+    await translate([seg("a", "Start with the mockup.")]);
+    assert.match(mock.requests[0]!.prompt, /mockup→设计稿/);
+    await call("/api/glossary", { method: "PUT", headers: { ...AUTH, "content-type": "text/plain" }, body: "mockup=原型图" });
+    await translate([seg("b", "Review the mockup again.")]);
+    assert.match(mock.requests[1]!.prompt, /mockup→原型图/);
+    await translate([seg("c", "Ship the mockup today.")], { glossary: [{ from: "Mockup", to: "线框图" }] });
+    assert.match(mock.requests[2]!.prompt, /Mockup→线框图/);
+    assert.doesNotMatch(mock.requests[2]!.prompt, /原型图|设计稿/);
+  });
+
   test("9 日志里只有事件和数字：搜不到原文、译文和密钥", async () => {
     await translate([seg("a", "Zebras gallop across the secret savanna.")]);
     await call("/api/status", { headers: { authorization: "Bearer guessed-key" } });

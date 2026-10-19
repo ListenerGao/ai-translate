@@ -1,5 +1,5 @@
 // 设置页：服务地址、密钥、目标语言、显示方式、术语表，以及「测试连接」。
-import { LlamaServerTranslator, TranslateError, checkLocalEndpoint, getModelProfile, parseGlossary } from "@ai-translate/core";
+import { BUILTIN_GLOSSARY, LlamaServerTranslator, TranslateError, checkLocalEndpoint, getModelProfile, parseGlossary } from "@ai-translate/core";
 import { errorMessage } from "../shared/errors.ts";
 import { loadSettings, saveSettings, type DisplayMode, type Settings } from "../shared/settings.ts";
 
@@ -13,6 +13,8 @@ const toggleKey = $<HTMLButtonElement>("toggle-key");
 const target = $<HTMLSelectElement>("target");
 const glossary = $<HTMLTextAreaElement>("glossary");
 const glossaryErrors = $<HTMLUListElement>("glossary-errors");
+$<HTMLParagraphElement>("builtin-glossary").textContent =
+  `内置术语（一直生效，自己写同一个原文会覆盖）：${BUILTIN_GLOSSARY.map((e) => `${e.from}=${e.to}`).join("、")}`;
 const autoTranslate = $<HTMLInputElement>("auto-translate");
 const selectionEnabled = $<HTMLInputElement>("selection-enabled");
 const testButton = $<HTMLButtonElement>("test");

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>术语与质检清单</title>
+<style>
+  /* 和量化盲评、译文质量评估同一套样式：浅/深色自适应，一节一张卡片 */
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --panel: #edf0f5; --fg: #18202c; --muted: #5a6375; --line: #c5ccd8;
+    --accent: #2753c8; --accent-soft: #e5ecfb; --good: #15803d; --minor: #b45309; --bad: #b91c1c;
+    --font: -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f131a; --surface: #171c25; --panel: #131821; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c;
+      --accent: #86a5ff; --accent-soft: #1c2742; --good: #4ade80; --minor: #fbbf24; --bad: #f87171; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--font); }
+  main { max-width: 940px; margin: 0 auto; padding: 40px 16px 80px; display: grid; gap: 24px; }
+  h1 { margin: 0; font-size: 26px; }
+  h2 { margin: 0; font-size: 19px; }
+  h3 { margin: 22px 0 8px; font-size: 16px; }
+  h3:first-of-type { margin-top: 0; }
+  .lead { margin: 6px 0 0; color: var(--muted); max-width: 720px; }
+  .bar { position: sticky; top: 0; z-index: 2; display: flex; gap: 14px; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .bar nav { display: flex; gap: 14px; font-size: 14px; flex-wrap: wrap; }
+  .bar nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+  .bar nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  button { font: inherit; font-size: 14px; border-radius: 8px; padding: 6px 14px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; white-space: nowrap; }
+  tbody tr:hover { background: var(--panel); }
+  td code, .src { font-family: var(--mono); font-size: 13px; background: var(--panel); border-radius: 4px; padding: 1px 5px; }
+  .src { display: inline-block; }
+  .ok { color: var(--good); font-weight: 600; }
+  .no { color: var(--bad); }
+  .sev { display: inline-block; min-width: 34px; text-align: center; font-size: 12px; font-weight: 700; border-radius: 999px;
+    padding: 0 8px; line-height: 20px; border: 1px solid currentColor; }
+  .sev.p0 { color: var(--bad); }
+  .sev.p1 { color: var(--minor); }
+  .sev.p2 { color: var(--muted); }
+  .note { color: var(--muted); font-size: 13px; margin: 0; }
+  .kv { display: flex; gap: 10px 22px; flex-wrap: wrap; font-size: 14px; }
+  .kv b { font-variant-numeric: tabular-nums; }
+  .pill { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 10px; font-size: 13px; }
+  @media (max-width: 640px) { main { padding-top: 20px; } .bar { position: static; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>术语与质检清单</h1>
+    <p class="lead">来源：<code>quant-blind-test.html</code> 的 32 条盲评逐条比对，加上 <code>quality-review.html</code> 已记录的译文问题。用途有两个——译文校对时的<b>术语对照</b>，以及每次换模型、改 prompt、调量化后复跑时的<b>回归检查项</b>。清单里的编号 <code>#n</code> 对应盲评页的条目号，可直接回查原文。</p>
+  </header>
+
+  <div class="bar">
+    <nav>
+      <a href="#conclusion">盲评结论</a>
+      <a href="#glossary">术语表</a>
+      <a href="#checklist">质检清单</a>
+      <a href="#blind">逐条判定</a>
+    </nav>
+    <button id="copy" type="button">复制为 Markdown</button>
+  </div>
+
+  <section id="conclusion">
+    <h2>一、盲评结论：两个量化版本质量打平，取更快的 Q4_K_M</h2>
+    <div class="kv">
+      <span>Q8_0 胜 <b>12</b> 条</span>
+      <span>Q4_K_M 胜 <b>12</b> 条</span>
+      <span>差不多 <b>8</b> 条</span>
+      <span>两版完全相同（未参与盲评）<b>18</b> 条</span>
+      <span class="pill">32 条参与判定</span>
+    </div>
+    <div class="table-wrap">
+      <table data-md data-title="速度与格式">
+        <thead><tr><th>版本</th><th>单条平均耗时</th><th>生成速度</th><th>4 路并行翻完 20 段</th><th>格式保持</th></tr></thead>
+        <tbody>
+          <tr><td>Q8_0</td><td>390 ms</td><td>94 tok/s</td><td>4.3 s / 206 tok/s</td><td>9 / 10</td></tr>
+          <tr><td><b>Q4_K_M</b></td><td><b>303 ms</b></td><td><b>123 tok/s</b></td><td><b>4.1 s / 216 tok/s</b></td><td>9 / 10</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">结论：质量无可辨差异，Q4_K_M 单条快 22%、吞吐高 31%，格式保持率相同。按项目既定规则「差距不明显时选更快的」，<b>默认配置取 Q4_K_M，Q8_0 留作可选配置</b>。换用 Q8_0 的唯一理由是需要更稳的专名与术语处理——但见第三节，两版都错的地方换版本救不回来。</p>
+  </section>
+
+  <section id="glossary">
+    <h2>二、术语表</h2>
+    <p class="note">「禁用」一列是实测中出现过的错译或易错译法。同一术语在全文必须一致，标题、正文、UI 文案都算。</p>
+
+    <h3>翻译技术</h3>
+    <div class="table-wrap">
+      <table data-md data-title="术语：翻译技术">
+        <thead><tr><th>原文</th><th>应采用</th><th>禁用 / 易错</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="src">machine translation / MT</td><td class="ok">机器翻译（MT）</td><td class="no">—</td><td>首次出现补缩写，后文统一用「机器翻译」</td></tr>
+          <tr><td class="src">annotation</td><td class="ok">标注</td><td class="no">注释</td><td>NLP / 语言学语境固定译「标注」；「注释」留给 comment（#26）</td></tr>
+          <tr><td class="src">evaluate（表达式）</td><td class="ok">求值</td><td class="no">评估</td><td>编程语境固定「求值」；「评估」只用于评价体系、方案（#15）</td></tr>
+          <tr><td class="src">prompt</td><td class="ok">提示词 ／ 提示符</td><td class="no">混用</td><td>喂给模型的输入＝提示词；代码里的 <code>&gt;&gt;&gt;</code>、<code>...</code> ＝提示符</td></tr>
+          <tr><td class="src">secondary prompt</td><td class="ok">次提示符</td><td class="no">次要提示符</td><td>Python 文档固定说法（#19）</td></tr>
+          <tr><td class="src">interpreter</td><td class="ok">解释器</td><td class="no">解释程序</td><td>—</td></tr>
+          <tr><td class="src">mask（变量）</td><td class="ok">遮蔽</td><td class="no">覆盖</td><td>「覆盖」对应 override，两者不可混（#6）</td></tr>
+          <tr><td class="src">read-only</td><td class="ok">只读</td><td class="no">只读变量</td><td>「视为只读」即可，避免「变量…只读变量」重复（#6）</td></tr>
+          <tr><td class="src">slice / slice indices</td><td class="ok">切片 / 切片索引</td><td class="no">—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>架构与工程</h3>
+    <div class="table-wrap">
+      <table data-md data-title="术语：架构与工程">
+        <thead><tr><th>原文</th><th>应采用</th><th>禁用 / 易错</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="src">suite(s) of services</td><td class="ok">服务套件 / 一组服务</td><td class="no">一系列服务套件</td><td>「一系列」与「套件」语义重复，二选一（#12、#23）</td></tr>
+          <tr><td class="src">componentize</td><td class="ok">组件化</td><td class="no">对…进行组件化</td><td>动词直用，避免「对如何对…」双「对」（#9）</td></tr>
+          <tr><td class="src">buildout</td><td class="ok">建设 / 扩建</td><td class="no">扩张</td><td>buildout 指工程建造，不是规模扩张（#18）</td></tr>
+          <tr><td class="src">dramatic collapse</td><td class="ok">暴跌 / 急剧下降</td><td class="no">显著下降</td><td>丢掉 dramatic 的强度就失真（#13）</td></tr>
+          <tr><td class="src">secure access to</td><td class="ok">保障对…的访问安全</td><td class="no">确保…可访问</td><td>方向不能反：是加固访问控制，不是保证可访问（#25）</td></tr>
+          <tr><td class="src">self-service</td><td class="ok">自助</td><td class="no">自行操作</td><td>—</td></tr>
+          <tr><td class="src">thanks to</td><td class="ok">得益于</td><td class="no">由于</td><td>原文带正面归因，用中性「由于」会走味（#32）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>专名与产品</h3>
+    <div class="table-wrap">
+      <table data-md data-title="术语：专名与产品">
+        <thead><tr><th>原文</th><th>应采用</th><th>禁用 / 易错</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="src">Brigham Young University</td><td class="ok">杨百翰大学</td><td class="no">布莱默恩大学 / Brigham Young 大学</td><td>有通用译名就必须用；不确定时保留原文，不要自创音译（#3）</td></tr>
+          <tr><td class="src">Martin Fowler</td><td class="ok">马丁·福勒</td><td class="no">法勒 / 法尔</td><td>通译名，勿按音节重造（#9）</td></tr>
+          <tr><td class="src">Hugging Face SSO</td><td class="ok">基础 SSO</td><td class="no">基础单点登录</td><td>正文已用 SSO，标题不得擅自展开（#30）</td></tr>
+          <tr><td class="src">LLM / LLMs</td><td class="ok">LLM</td><td class="no">LLMs</td><td>中文不标复数，全文统一（#29）</td></tr>
+          <tr><td class="src">token（计价）</td><td class="ok">0.25 美元/百万 token</td><td class="no">mTok 直搬</td><td>mTok 展开为「百万 token」</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>交互与通用表达</h3>
+    <div class="table-wrap">
+      <table data-md data-title="术语：交互与通用表达">
+        <thead><tr><th>原文</th><th>应采用</th><th>禁用 / 易错</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="src">hover / tap / click</td><td class="ok">悬停 / 轻触（点按）/ 点击</td><td class="no">三者都译「点击」</td><td>鼠标与触屏是两种交互，原文并列时不能合并（#1）</td></tr>
+          <tr><td class="src">things we learned</td><td class="ok">收获 / 学到的东西</td><td class="no">学习成果</td><td>「学习成果」是 learning outcomes，语义跑偏（#29）</td></tr>
+          <tr><td class="src">notable</td><td class="ok">值得一提</td><td class="no">值得注意</td><td>评价成就时用「值得一提」（#4）</td></tr>
+          <tr><td class="src">for a couple of years</td><td class="ok">这几年一直</td><td class="no">漏译</td><td>时间跨度是信息，不能省（#5）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="checklist">
+    <h2>三、质检清单</h2>
+    <p class="note">按严重度分级：<span class="sev p0">P0</span> 必须修，错译或失真；<span class="sev p1">P1</span> 应修，影响可读或术语一致性；<span class="sev p2">P2</span> 可修，文体与排版层面。</p>
+
+    <h3>P0 · 硬伤</h3>
+    <div class="table-wrap">
+      <table data-md data-title="P0 硬伤">
+        <thead><tr><th>编号</th><th>检查项</th><th>实测反例</th><th>正确做法 / 自动检测思路</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sev p0">P0</span></td><td>残留未译英文</td><td>#7 两版均为「翻译的 <b>intended</b> 用途」</td><td>译为「预期用途」。检测：译文里出现连续 2 个以上 ASCII 字母且不在专名白名单（GPT-4、SSO、token、Hugging Face…）→ 报警</td></tr>
+          <tr><td><span class="sev p0">P0</span></td><td>专名错译</td><td>#3「布莱默恩大学」；#9「法勒 / 法尔」</td><td>走专名白名单；白名单未命中时<b>保留原文</b>，禁止自创音译</td></tr>
+          <tr><td><span class="sev p0">P0</span></td><td>语义反转</td><td>#25「确保其组织资源可访问」（原文 secure access to）</td><td>抽检含 secure / restrict / prevent / fail 等极性词的句子，人工复核方向</td></tr>
+          <tr><td><span class="sev p0">P0</span></td><td>数字与占位符丢失</td><td>#24 数字全部变成 <code>▢</code></td><td>先确认是测试数据脱敏还是模型输出；若是后者，数字/代码/URL 必须逐字比对</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>P1 · 语义与术语</h3>
+    <div class="table-wrap">
+      <table data-md data-title="P1 语义与术语">
+        <thead><tr><th>编号</th><th>检查项</th><th>实测反例</th><th>正确做法</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sev p1">P1</span></td><td>长定语未拆，成病句</td><td>#5 两版均为「James 从…构建应用程序的兴趣源于…」</td><td>拆成「James 对用小型协作服务构建应用这件事的兴趣，源于……」</td></tr>
+          <tr><td><span class="sev p1">P1</span></td><td>术语误译</td><td>#15「评估」；#26「注释」</td><td>按第二节术语表：求值 / 标注</td></tr>
+          <tr><td><span class="sev p1">P1</span></td><td>过度翻译</td><td>#27「一无所知」（原文 didn't）</td><td>「不知道」即可，勿加重语气</td></tr>
+          <tr><td><span class="sev p1">P1</span></td><td>信息漏译</td><td>#4 any time；#5 for a couple of years；#16 their</td><td>时间跨度、限定词属信息，不能省</td></tr>
+          <tr><td><span class="sev p1">P1</span></td><td>代词冗余</td><td>#1「以便<b>您</b>将输入行复制并粘贴到<b>您的</b>解释器中」</td><td>语境清楚时省略领属代词，一句内最多保留一个</td></tr>
+          <tr><td><span class="sev p1">P1</span></td><td>量词错配</td><td>#8「一台或多台 GPU」</td><td>「一块 / 一张 GPU」</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>P2 · 文体与排版</h3>
+    <div class="table-wrap">
+      <table data-md data-title="P2 文体与排版">
+        <thead><tr><th>编号</th><th>检查项</th><th>实测反例</th><th>正确做法</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sev p2">P2</span></td><td>逐字重复</td><td>#3「从法语、英语、德语和西班牙语翻译为法语、英语、德语和西班牙语」</td><td>压缩为「在法、英、德、西四种语言之间互译」</td></tr>
+          <tr><td><span class="sev p2">P2</span></td><td>文体不符</td><td>#22「发生了一大波变化」</td><td>评论文体用「发生了不少大事」</td></tr>
+          <tr><td><span class="sev p2">P2</span></td><td>标点与空格</td><td>#3「（1970年）； Brigham」全角分号后多一个半角空格</td><td>中文标点后不留空格；中英文之间空格全文统一（「在2023年」与「2024 年」不一致）</td></tr>
+          <tr><td><span class="sev p2">P2</span></td><td>单复数直搬</td><td>#29「LLMs」</td><td>中文不标复数</td></tr>
+          <tr><td><span class="sev p2">P2</span></td><td>句式冗余</td><td>#28「一个组件是一个可以独立替换和升级的软件单元」</td><td>去掉重复的「一个」</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="blind">
+    <h2>四、盲评逐条判定（32 条）</h2>
+    <p class="note">A、B 与量化版本的对应关系已在盲评页揭晓逻辑里还原。胜方列为量化版本名；「差不多」表示差异属噪声级，按规则归入更快的一方。</p>
+    <div class="table-wrap">
+      <table data-md data-title="盲评逐条判定">
+        <thead><tr><th>#</th><th>类型</th><th>胜方</th><th>关键差异</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>段落</td><td class="ok">Q8_0</td><td>Q4_K_M「您…您的」代词冗余，Q8_0 只留一个</td></tr>
+          <tr><td>2</td><td>段落</td><td class="ok">Q4_K_M</td><td>「合适的设置」加「的」消除「设置」的词性歧义</td></tr>
+          <tr><td>3</td><td>段落</td><td class="ok">Q4_K_M</td><td>Q8_0 专名错译「布莱默恩大学」；Q4_K_M 保留原文</td></tr>
+          <tr><td>4</td><td>段落</td><td class="ok">Q4_K_M</td><td>「不是什么…的事了」贴合 even 的轻描淡写</td></tr>
+          <tr><td>5</td><td>段落</td><td>差不多</td><td>Q4_K_M 语病、Q8_0 漏译时间跨度，互抵</td></tr>
+          <tr><td>6</td><td>段落</td><td class="ok">Q8_0</td><td>「视为只读」不重复「变量」</td></tr>
+          <tr><td>7</td><td>段落</td><td class="ok">Q8_0</td><td>「评估方式」更贴 how…are evaluated</td></tr>
+          <tr><td>8</td><td>段落</td><td>差不多</td><td>仅「并配备」有无</td></tr>
+          <tr><td>9</td><td>段落</td><td class="ok">Q4_K_M</td><td>「如何组件化」简洁；Q8_0「对…进行组件化」双「对」</td></tr>
+          <tr><td>10</td><td>段落</td><td class="ok">Q4_K_M</td><td>「实用的默认值」搭配更自然</td></tr>
+          <tr><td>11</td><td>段落</td><td class="ok">Q4_K_M</td><td>「运行其他东西的空间」语序通顺</td></tr>
+          <tr><td>12</td><td>段落</td><td>差不多</td><td>「一系列服务」/「服务套件」各有得失</td></tr>
+          <tr><td>13</td><td>段落</td><td class="ok">Q8_0</td><td>「急剧下降」保住 dramatic 的强度</td></tr>
+          <tr><td>14</td><td>段落</td><td class="ok">Q8_0</td><td>架构用「采用」优于「使用」</td></tr>
+          <tr><td>15</td><td>段落</td><td>差不多</td><td>仅差一个「了」</td></tr>
+          <tr><td>16</td><td>段落</td><td>差不多</td><td>「自三月起提供」/「发布于三月」各有取舍</td></tr>
+          <tr><td>17</td><td>段落</td><td>差不多</td><td>「组合」/「拼接」均可</td></tr>
+          <tr><td>18</td><td>段落</td><td class="ok">Q8_0</td><td>「建设」贴 buildout，Q4_K_M「扩张」偏</td></tr>
+          <tr><td>19</td><td>带格式</td><td class="ok">Q4_K_M</td><td>「提示符后的所有内容」比「所有后续内容」清楚</td></tr>
+          <tr><td>20</td><td>带格式</td><td>差不多</td><td>仅「登录」/「登录方式」</td></tr>
+          <tr><td>21</td><td>带格式</td><td>差不多</td><td>「利用」/「使用」</td></tr>
+          <tr><td>22</td><td>带格式</td><td class="ok">Q4_K_M</td><td>「不少大事」优于口语化「一大波变化」</td></tr>
+          <tr><td>23</td><td>带格式</td><td class="ok">Q8_0</td><td>「精确的定义」贴 precise</td></tr>
+          <tr><td>24</td><td>带格式</td><td class="ok">Q8_0</td><td>「教程后面」比「教程中稍后」自然</td></tr>
+          <tr><td>25</td><td>带格式</td><td class="ok">Q8_0</td><td>Q4_K_M 把 secure access 译成「确保可访问」，方向反了</td></tr>
+          <tr><td>26</td><td>带格式</td><td class="ok">Q4_K_M</td><td>「标注」为 NLP 正确术语</td></tr>
+          <tr><td>27</td><td>带格式</td><td class="ok">Q8_0</td><td>「不知道」不过度，Q4_K_M「一无所知」加重</td></tr>
+          <tr><td>28</td><td>带格式</td><td class="ok">Q8_0</td><td>避免「一个…一个」重复</td></tr>
+          <tr><td>29</td><td>短句</td><td class="ok">Q4_K_M</td><td>「收获」贴 things we learned；Q8_0「学习成果」跑偏</td></tr>
+          <tr><td>30</td><td>短句</td><td class="ok">Q4_K_M</td><td>与正文「基础 SSO」保持一致</td></tr>
+          <tr><td>31</td><td>短句</td><td class="ok">Q4_K_M</td><td>「在我的笔记本电脑上运行」语序自然</td></tr>
+          <tr><td>32</td><td>短句</td><td class="ok">Q8_0</td><td>「得益于」贴 thanks to 的正面归因</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>五、怎么用这份清单</h2>
+    <ol style="margin:0; padding-left:20px; display:grid; gap:6px;">
+      <li><b>改 prompt 或换模型后</b>：先跑第三节的 P0 四项，任何一项不为零就不进入下一轮。</li>
+      <li><b>P0 清零后</b>：用术语表抽查 10 条，确认术语一致性；再看 P1 的六项。</li>
+      <li><b>每轮改动</b>：回 <code>quant-blind-test.html</code> 复跑同一批 32 条，对比胜负数是否发生系统性偏移（例如某一版连续在同一类条目上输）。</li>
+      <li><b>新增术语</b>：先在第二节加行，再改 prompt，最后才动代码，避免术语表与实际行为脱节。</li>
+    </ol>
+  </section>
+
+  <p class="note">原文摘自 Python 文档（PSF）、Hugging Face 文档、Martin Fowler 微服务系列文章与 Simon Willison 博客，仅用于本项目内部评估。本清单为内部质检用，不对外发布。</p>
+</main>
+<script>
+  document.getElementById("copy").addEventListener("click", async () => {
+    const lines = [];
+    for (const t of document.querySelectorAll("table[data-md]")) {
+      lines.push("## " + (t.dataset.title || ""), "");
+      const rows = [...t.querySelectorAll("tr")];
+      rows.forEach((tr, i) => {
+        const cells = [...tr.children].map((c) => c.textContent.replace(/\s+/g, " ").trim());
+        lines.push("| " + cells.join(" | ") + " |");
+        if (i === 0) lines.push("|" + cells.map(() => "---").join("|") + "|");
+      });
+      lines.push("");
+    }
+    const md = "# 术语与质检清单\n\n" + lines.join("\n");
+    const btn = document.getElementById("copy");
+    try {
+      await navigator.clipboard.writeText(md);
+      btn.textContent = "已复制 " + md.length + " 字";
+    } catch {
+      btn.textContent = "复制失败，请手动选择";
+    }
+    setTimeout(() => { btn.textContent = "复制为 Markdown"; }, 2000);
+  });
+</script>
+</body>
+</html>

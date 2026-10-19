@@ -1,5 +1,6 @@
 // 扩展后台（service worker）：接收网页端的段落，排队翻译，按段返回译文。
 import {
+  BUILTIN_GLOSSARY,
   DEFAULT_MODEL_ID,
   LlamaServerTranslator,
   Pipeline,
@@ -7,6 +8,7 @@ import {
   TranslateError,
   getModelProfile,
   isAbortError,
+  mergeGlossary,
   parseGlossary,
   type Segment,
   type SegmentOutcome,
@@ -55,7 +57,8 @@ async function translateSegment(
     source: s.source,
     target: target ?? s.target,
     model: s.modelId,
-    glossary: parseGlossary(s.glossaryText).entries,
+    // 用户的术语优先，内置术语补在后面
+    glossary: mergeGlossary(parseGlossary(s.glossaryText).entries, BUILTIN_GLOSSARY),
   };
   return pipeline.translate(job, translator, signal);
 }

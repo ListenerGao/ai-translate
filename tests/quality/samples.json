@@ -1,0 +1,471 @@
+[
+  {
+    "id": "b01",
+    "kind": "段落",
+    "source": "You can use the “Copy” button (it appears in the upper-right corner when hovering over or tapping a code example), which strips prompts and omits output, to copy and paste the input lines into your interpreter.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b02",
+    "kind": "段落",
+    "source": "Hugging Face offers two distinct SSO models, each designed for different organizational needs. Understanding the differences between these two approaches is key to choosing the right setup for your team.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b03",
+    "kind": "段落",
+    "source": "The French Textile Institute also used MT to translate abstracts from and into French, English, German and Spanish (1970); Brigham Young University started a project to translate Mormon texts by automated translation (1971).",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b04",
+    "kind": "段落",
+    "source": "Training a GPT-4 beating model was a huge deal in 2023. In 2024 it’s an achievement that isn’t even particularly notable, though I personally still celebrate any time a new organization joins that list.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b05",
+    "kind": "段落",
+    "source": "James Lewis is a Principal Consultant at Thoughtworks and member of the Technology Advisory Board. James' interest in building applications out of small collaborating services stems from a background in integrating enterprise systems at scale. He's built a number of systems using microservices and has been an active participant in the growing community for a couple of years.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b06",
+    "kind": "段落",
+    "source": "This variable should be treated as read-only by the user. Don’t explicitly assign a value to it — you would create an independent local variable with the same name masking the built-in variable with its magic behavior.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b07",
+    "kind": "段落",
+    "source": "There are many factors that affect how machine translation systems are evaluated. These factors include the intended use of the translation, the nature of the machine translation software, and the nature of the translation process.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b08",
+    "kind": "段落",
+    "source": "This remains astonishing to me. I thought a model with the capabilities and output quality of GPT-4 needed a datacenter class server with one or more $40,000+ GPUs.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b09",
+    "kind": "段落",
+    "source": "Martin Fowler is an author, speaker, and general loud-mouth on software development. He's long been puzzled by the problem of how to componentize software systems, having heard more vague claims than he's happy with. He hopes that microservices will live up to the early promise its advocates have found.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b10",
+    "kind": "段落",
+    "source": "Slice indices have useful defaults; an omitted first index defaults to zero, an omitted second index defaults to the size of the string being sliced.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b11",
+    "kind": "段落",
+    "source": "These models take up enough of my 64GB of RAM that I don’t run them often—they don’t leave much room for anything else.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b12",
+    "kind": "段落",
+    "source": "These frustrations have led to the microservice architectural style: building applications as suites of services. As well as the fact that services are independently deployable and scalable, each service also provides a firm module boundary, even allowing for different services to be written in different programming languages. They can also be managed by different teams .",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b13",
+    "kind": "段落",
+    "source": "The past twelve months have seen a dramatic collapse in the cost of running a prompt through the top tier hosted LLMs.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b14",
+    "kind": "段落",
+    "source": "We do not claim that the microservice style is novel or innovative, its roots go back at least to the design principles of Unix. But we do think that not enough people consider a microservice architecture and that many software developments would be better off if they used it.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b15",
+    "kind": "段落",
+    "source": "The first line contains a multiple assignment: the variables a and b simultaneously get the new values 0 and 1. On the last line this is used again, demonstrating that the expressions on the right-hand side are all evaluated first before any of the assignments take place. The right-hand side expressions are evaluated from the left to the right.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b16",
+    "kind": "段落",
+    "source": "Other model providers charge even less. Anthropic’s Claude 3 Haiku (from March, but still their cheapest model) is $0.25/mTok. Google’s Gemini 1.5 Flash is $0.075/mTok and their Gemini 1.5 Flash 8B is $0.0375/mTok—that’s 27x cheaper than GPT-3.5 Turbo last year.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b17",
+    "kind": "段落",
+    "source": "For as long as we've been involved in the software industry, there's been a desire to build systems by plugging together components, much in the way we see things are made in the physical world. During the last couple of decades we've seen considerable progress with large compendiums of common libraries that are part of most language platforms.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b18",
+    "kind": "段落",
+    "source": "There’s still plenty to worry about with respect to the environmental impact of the great AI datacenter buildout, but a lot of the concerns over the energy cost of individual prompts are no longer credible.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b19",
+    "kind": "段落",
+    "source": "In the following examples, input and output are distinguished by the presence or absence of prompts (>>> and …): to repeat the example, you must type everything after the prompt, when the prompt appears; lines that do not begin with a prompt are output from the interpreter. Note that a secondary prompt on a line by itself in an example means you must type a blank line; this is used to end a multi-line command.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b20",
+    "kind": "段落",
+    "source": "Basic SSO adds an access-control layer on top of the standard Hugging Face login. It does not replace the Hugging Face login — members keep their existing credentials and are prompted to complete SSO only when accessing your organization’s resources.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b21",
+    "kind": "段落",
+    "source": "Machine translation is the use of computational techniques to translate text or speech from one language to another, including the contextual, idiomatic, and pragmatic nuances of both languages.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b22",
+    "kind": "段落",
+    "source": "A lot has happened in the world of Large Language Models over the course of 2024. Here’s a review of things we figured out about the field in the past twelve months, plus my attempt at identifying key themes and pivotal moments.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b23",
+    "kind": "段落",
+    "source": "The term “Microservice Architecture” has sprung up over the last few years to describe a particular way of designing software applications as suites of independently deployable services. While there is no precise definition of this architectural style, there are certain common characteristics around organization around business capability, automated deployment, intelligence in the endpoints, and decentralized control of languages and data.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b24",
+    "kind": "段落",
+    "source": "The integer numbers (e.g. 2, 4, 20) have type int, the ones with a fractional part (e.g. 5.0, 1.6) have type float. We will see more about numeric types later in the tutorial.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b25",
+    "kind": "段落",
+    "source": "This is well suited for teams that want to secure access to their organizational resources while preserving the flexibility of individual Hugging Face accounts. Setup is self-service from your organization’s settings.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b26",
+    "kind": "段落",
+    "source": "Before the advent of deep learning methods, statistical methods required a lot of rules accompanied by morphological, syntactic, and semantic annotations.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b27",
+    "kind": "段落",
+    "source": "In my December 2023 review I wrote about how We don’t yet know how to build GPT-4—OpenAI’s best model was almost a year old at that point, yet no other AI lab had produced anything better. What did OpenAI know that the rest of us didn’t?",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b28",
+    "kind": "段落",
+    "source": "When talking about components we run into the difficult definition of what makes a component. Our definition is that a component is a unit of software that is independently replaceable and upgradeable.",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b29",
+    "kind": "标题与界面文字",
+    "source": "Things we learned about LLMs in 2024",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b30",
+    "kind": "标题与界面文字",
+    "source": "Basic SSO",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b31",
+    "kind": "标题与界面文字",
+    "source": "Some of those GPT-4 models run on my laptop",
+    "from": "量化盲评"
+  },
+  {
+    "id": "b32",
+    "kind": "标题与界面文字",
+    "source": "LLM prices crashed, thanks to competition and increased efficiency",
+    "from": "量化盲评"
+  },
+  {
+    "id": "q01",
+    "kind": "技术文档",
+    "site": "MDN",
+    "source": "Closures are useful because they let you associate data (the lexical environment) with a function that operates on that data. This has obvious parallels to object-oriented programming, where objects allow you to associate data (the object's properties) with one or more methods.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q02",
+    "kind": "技术文档",
+    "site": "MDN",
+    "source": "In the example above, there's a series of nested functions, all of which have access to the outer functions' scope. In this context, we can say that closures have access to all outer scopes.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q03",
+    "kind": "技术文档",
+    "site": "Rust 官方教程",
+    "source": "That first part is done by us: When we call String::from, its implementation requests the memory it needs. This is pretty much universal in programming languages.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q04",
+    "kind": "技术文档",
+    "site": "Rust 官方教程",
+    "source": "The inverse of this is true for the relationship between scoping, ownership, and memory being freed via the drop function as well. When you assign a completely new value to an existing variable, Rust will call drop and free the original value’s memory immediately. Consider this code, for example:",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q05",
+    "kind": "技术文档",
+    "site": "Kubernetes 文档",
+    "source": "Kubernetes is not a traditional, all-inclusive PaaS (Platform as a Service) system. Since Kubernetes operates at the container level rather than at the hardware level, it provides some generally applicable features common to PaaS offerings, such as deployment, scaling, load balancing, and lets users integrate their logging, monitoring, and alerting solutions. However, Kubernetes is not monolithic, and these default solutions are optional and pluggable. Kubernetes provides the building blocks for building developer platforms, but preserves user choice and flexibility where it is important.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q06",
+    "kind": "技术文档",
+    "site": "Kubernetes 文档",
+    "source": "Virtualization allows better utilization of resources in a physical server and allows better scalability because an application can be added or updated easily, reduces hardware costs, and much more. With virtualization you can present a set of physical resources as a cluster of disposable virtual machines.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q07",
+    "kind": "技术文档",
+    "site": "React 文档",
+    "source": "To build a static version of your app that renders your data model, you’ll want to build components that reuse other components and pass data using props. Props are a way of passing data from parent to child. (If you’re familiar with the concept of state, don’t use state at all to build this static version. State is reserved only for interactivity, that is, data that changes over time. Since this is a static version of the app, you don’t need it.)",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q08",
+    "kind": "技术文档",
+    "site": "React 文档",
+    "source": "Add state to the component with the useState() Hook. Hooks are special functions that let you “hook into” React. Add two state variables at the top of FilterableProductTable and specify their initial state:",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q09",
+    "kind": "技术文档",
+    "site": "Python 教程",
+    "source": "When a class defines an __init__() method, class instantiation automatically invokes __init__() for the newly created class instance. So in this example, a new, initialized instance can be obtained by:",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q10",
+    "kind": "技术文档",
+    "site": "Python 教程",
+    "source": "Execution of a derived class definition proceeds the same as for a base class. When the class object is constructed, the base class is remembered. This is used for resolving attribute references: if a requested attribute is not found in the class, the search proceeds to look in the base class. This rule is applied recursively if the base class itself is derived from some other class.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q11",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "Carbon fixation produces the three-carbon sugar intermediate, which is then converted into the final carbohydrate products. The simple carbon sugars photosynthesis produces are then used to form other organic compounds, such as the building material cellulose, the precursors for lipid and amino acid biosynthesis, or as a fuel in cellular respiration. The latter occurs not only in plants but also in animals when the carbon and energy from plants is passed through a food chain.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q12",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "In 1779, Jan Ingenhousz repeated Priestley's experiments. He discovered that it was the influence of sunlight on the plant that could cause it to revive a mouse in a matter of hours.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q13",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "The development of bleaching powder (calcium hypochlorite) by chemist Charles Tennant in 1800, based on the discoveries of Claude Louis Berthollet, revolutionised the bleaching processes in the textile industry by reducing the time required for the traditional process then in use: repeated exposure to the sun in fields after soaking the textiles with alkali or sour milk. Tennant's St Rollox Chemical Works, Glasgow, became the world's largest chemical plant.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q14",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "The Industrial Revolution concentrated labour into mills, factories, and mines, thus facilitating the organisation of combinations or trade unions advance the interests of working people. A union could demand better terms by withdrawing and halting production. Employers had to decide between giving in at a cost, or suffering the cost of the lost production. Skilled workers were difficult to replace, and these were the first to successfully advance their conditions through this kind of bargaining.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q15",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "Inflation numbers are often seasonally adjusted to differentiate expected cyclical cost shifts. For example, home heating costs are expected to rise in colder months, and seasonal adjustments are often used when measuring inflation to compensate for cyclical energy or fuel demand spikes. Inflation numbers may be averaged or otherwise subjected to statistical techniques to remove statistical noise and volatility of individual prices.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q16",
+    "kind": "百科科普",
+    "site": "维基百科",
+    "source": "In this formula, the general price level is related to the level of real economic activity (Q), the quantity of money (M) and the velocity of money (V). The formula itself is simply an uncontroversial accounting identity because the velocity of money (V) is defined residually from the equation to be the ratio of final nominal expenditure ( 𝑃 𝑄 ) to the quantity of money (M).",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q17",
+    "kind": "学术摘要",
+    "site": "arXiv",
+    "source": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q18",
+    "kind": "学术摘要",
+    "site": "arXiv",
+    "source": "We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers. As a result, the pre-trained BERT model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks, such as question answering and language inference, without substantial task-specific architecture modifications.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q19",
+    "kind": "学术摘要",
+    "site": "arXiv",
+    "source": "An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible. Using GPT-3 175B as an example -- deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q20",
+    "kind": "学术摘要",
+    "site": "arXiv",
+    "source": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q21",
+    "kind": "标题与界面文字",
+    "site": "MDN",
+    "source": "In this article",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q22",
+    "kind": "标题与界面文字",
+    "site": "MDN",
+    "source": "Emulating private methods with closures",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q23",
+    "kind": "标题与界面文字",
+    "site": "Rust 官方教程",
+    "source": "What Is Ownership?",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q24",
+    "kind": "标题与界面文字",
+    "site": "Rust 官方教程",
+    "source": "The String Type",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q25",
+    "kind": "标题与界面文字",
+    "site": "Kubernetes 文档",
+    "source": "Why you need Kubernetes and what it can do",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q26",
+    "kind": "标题与界面文字",
+    "site": "Kubernetes 文档",
+    "source": "Historical context for Kubernetes",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q27",
+    "kind": "标题与界面文字",
+    "site": "React 文档",
+    "source": "Start with the mockup",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q28",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "out of the box",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q29",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "rate limit exceeded",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q30",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "breaking change",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q31",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "under the hood",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q32",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "as a rule of thumb",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q33",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "spin up a new instance",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q34",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "deprecated",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "q35",
+    "kind": "划词短语",
+    "site": "常见搭配",
+    "source": "single source of truth",
+    "from": "译文质量评估"
+  },
+  {
+    "id": "m01",
+    "kind": "带格式段落",
+    "site": "Python 教程",
+    "from": "格式标记",
+    "source": "The integer numbers (e.g. 2, 4, 20) have type int, the ones with a fractional part (e.g. 5.0, 1.6) have type float. We will see more about numeric types later in the tutorial.",
+    "markup": "The integer numbers (e.g. <x1/>, <x2/>, <x3/>) have type <g4><x5/></g4>, the ones with a fractional part (e.g. <x6/>, <x7/>) have type <g8><x9/></g8>. We will see more about numeric types later in the tutorial."
+  },
+  {
+    "id": "m02",
+    "kind": "带格式段落",
+    "site": "自拟",
+    "from": "格式标记",
+    "source": "Read the setup guide before you enable SSO for your organization.",
+    "markup": "Read the <g1>setup guide</g1> before you <g2>enable SSO</g2> for your organization."
+  },
+  {
+    "id": "m03",
+    "kind": "带格式段落",
+    "site": "自拟",
+    "from": "格式标记",
+    "source": "Call String::from to create a new string from a literal, and it will allocate memory on the heap.",
+    "markup": "Call <x1/> to create a new string from a literal, and it will allocate memory on the <g2>heap</g2>."
+  },
+  {
+    "id": "m04",
+    "kind": "带格式段落",
+    "site": "自拟",
+    "from": "格式标记",
+    "source": "Hooks like useState let you add state to function components without writing a class.",
+    "markup": "Hooks like <g1><x2/></g1> let you add state to <g3>function components</g3> without writing a class."
+  }
+]

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>译文质量评估</title>
+<style>
+  /* 和量化盲评页同一套样式：每条一张卡片，原文在上；两个版本译文一样只评一次，不一样就各评各的 */
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --panel: #edf0f5; --fg: #18202c; --muted: #5a6375; --line: #c5ccd8;
+    --accent: #2753c8; --good: #15803d; --minor: #b45309; --bad: #b91c1c;
+    --font: -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f131a; --surface: #171c25; --panel: #131821; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c;
+      --accent: #86a5ff; --good: #4ade80; --minor: #fbbf24; --bad: #f87171; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--font); }
+  main { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; display: grid; gap: 24px; }
+  h1 { margin: 0; font-size: 26px; }
+  .lead { margin: 6px 0 0; color: var(--muted); max-width: 720px; }
+  .bar { position: sticky; top: 0; z-index: 1; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .bar strong { font-variant-numeric: tabular-nums; }
+  .buttons { display: flex; gap: 8px; }
+  button { font: inherit; border-radius: 8px; padding: 7px 16px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #items { display: grid; gap: 16px; }
+  .group { margin: 16px 0 0; font-size: 18px; }
+  .group:first-child { margin-top: 0; }
+  .item { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; }
+  .meta { display: flex; gap: 10px; align-items: baseline; color: var(--muted); font-size: 13px; }
+  .tag { background: var(--panel); border-radius: 999px; padding: 0 10px; font-size: 12px; }
+  .source { font-family: var(--serif); font-size: 16px; margin: 0; }
+  .cand { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 10px 12px; background: var(--bg); display: grid; gap: 8px; }
+  .cand[data-rating="good"] { border-left-color: var(--good); }
+  .cand[data-rating="minor"] { border-left-color: var(--minor); }
+  .cand[data-rating="bad"] { border-left-color: var(--bad); }
+  .cand h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .cand h3 .who { color: var(--accent); margin-left: 6px; }
+  .cand p { margin: 0; word-break: break-word; }
+  .choices, .issues { display: flex; gap: 6px 18px; flex-wrap: wrap; }
+  .choices label, .issues label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .issues { color: var(--muted); font-size: 14px; }
+  .detail { display: grid; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
+  .detail input[type="text"] { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); width: 100%; }
+  #summary { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; }
+  #summary h2 { margin: 0; font-size: 20px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .table-wrap { overflow-x: auto; }
+  .note { color: var(--muted); font-size: 13px; margin: 0; }
+  textarea { width: 100%; min-height: 160px; font: 13px/1.6 ui-monospace, Menlo, monospace; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>译文质量评估</h1>
+    <p class="lead">同一个 Index-Translate-2B 的两个量化版本（Q8_0、Q4_K_M）在本机翻译了下面这些真实网页内容，和插件里的翻译走同一条路径。两个版本译文一样的只评一次；不一样的随机标成 A、B，各评各的。每个译文给个评价：「准确通顺」「小毛病」或「有错误」；不是准确通顺的，勾一下问题类型，有想法可以写一句备注。全部评完点「揭晓」看两个版本各自的结果，再点「复制结果」发给 Claude。评分只保存在这个浏览器里。</p>
+  </header>
+  <div class="bar">
+    <span>已评 <strong id="done">0</strong> / <strong id="total">0</strong></span>
+    <span class="buttons"><button id="reveal" type="button" disabled>揭晓</button><button id="copy" class="secondary" type="button">复制结果</button></span>
+  </div>
+  <div id="items"></div>
+  <section id="summary" hidden>
+    <h2>结果</h2>
+    <div class="table-wrap"><table id="tally"></table></div>
+    <div class="table-wrap"><table id="by-kind"></table></div>
+    <p class="note" id="copy-note">点上面的「复制结果」，把内容发给 Claude。</p>
+    <textarea id="fallback" readonly hidden aria-label="评估结果"></textarea>
+  </section>
+  <p class="note">原文摘自 MDN（CC BY-SA 2.5）、Rust 官方教程（MIT / Apache-2.0）、Kubernetes 文档（CC BY 4.0）、React 文档（CC BY 4.0）、Python 文档（PSF）、维基百科（CC BY-SA 4.0）和 arXiv 论文摘要（版权归论文作者），仅用于本项目内部评估。划词短语是自拟的常见搭配。</p>
+</main>
+<script>
+  const DATA = [{"id":1,"kind":"技术文档","site":"MDN","source":"Closures are useful because they let you associate data (the lexical environment) with a function that operates on that data. This has obvious parallels to object-oriented programming, where objects allow you to associate data (the object's properties) with one or more methods.","same":true,"a":"闭包很有用，因为它们能让你将数据（词法环境）与一个处理该数据的函数关联起来。这与面向对象编程有明显的相似之处，在面向对象编程中，对象能让你将数据（对象的属性）与一个或多个方法关联起来。"},{"id":2,"kind":"技术文档","site":"MDN","source":"In the example above, there's a series of nested functions, all of which have access to the outer functions' scope. In this context, we can say that closures have access to all outer scopes.","same":true,"a":"在上面的例子中，有一系列嵌套函数，它们都能访问外部函数的作用域。在这种情况下，我们可以说闭包能够访问所有外部作用域。"},{"id":3,"kind":"技术文档","site":"Rust 官方教程","source":"That first part is done by us: When we call String::from, its implementation requests the memory it needs. This is pretty much universal in programming languages.","same":false,"a":"这部分由我们完成：当我们调用 String::from 时，它的实现会请求所需的内存。这在大多数编程语言中都是通用的。","b":"这部分由我们负责：当我们调用 String::from 时，它的实现会请求所需的内存。这在大多数编程语言中都是通用的。","aIs":"Q8_0"},{"id":4,"kind":"技术文档","site":"Rust 官方教程","source":"The inverse of this is true for the relationship between scoping, ownership, and memory being freed via the drop function as well. When you assign a completely new value to an existing variable, Rust will call drop and free the original value’s memory immediately. Consider this code, for example:","same":false,"a":"对于通过 drop 函数释放内存的 scoping、所有权和内存之间的关系，其逆命题同样成立。当你为一个现有变量赋一个完全新的值时，Rust 会立即调用 drop 并释放原始值的内存。例如，可以看看这段代码：","b":"对于通过 drop 函数释放内存的 scoping、所有权以及内存之间的关系，也成立同样的反向关系。当你对一个现有变量赋一个完全新的值时，Rust 会立即调用 drop 并释放原始值的内存。例如，可以看看这段代码：","aIs":"Q8_0"},{"id":5,"kind":"技术文档","site":"Kubernetes 文档","source":"Kubernetes is not a traditional, all-inclusive PaaS (Platform as a Service) system. Since Kubernetes operates at the container level rather than at the hardware level, it provides some generally applicable features common to PaaS offerings, such as deployment, scaling, load balancing, and lets users integrate their logging, monitoring, and alerting solutions. However, Kubernetes is not monolithic, and these default solutions are optional and pluggable. Kubernetes provides the building blocks for building developer platforms, but preserves user choice and flexibility where it is important.","same":false,"a":"Kubernetes 并非传统的、覆盖全面的 PaaS（平台即服务）系统。由于 Kubernetes 在容器层面运行，而非硬件层面，因此它提供了一些适用于 PaaS 服务的通用功能，例如部署、扩展、负载均衡，并允许用户集成自己的日志记录、监控和警报解决方案。然而，Kubernetes 并非单体系统，这些默认解决方案是可选且可插拔的。Kubernetes 为构建开发者平台提供了基础组件，但在关键领域保留了用户的选择和灵活性。","b":"Kubernetes 并非传统的、覆盖全面的平台即服务（PaaS）系统。由于 Kubernetes 在容器层面运行而非硬件层面，它提供了一些适用于 PaaS 服务的通用功能，例如部署、扩展、负载均衡，并允许用户集成自己的日志记录、监控和警报解决方案。然而，Kubernetes 并非单体系统，这些默认解决方案是可选且可插拔的。Kubernetes 为构建开发者平台提供了基础组件，但在关键领域保留了用户的选择和灵活性。","aIs":"Q8_0"},{"id":6,"kind":"技术文档","site":"Kubernetes 文档","source":"Virtualization allows better utilization of resources in a physical server and allows better scalability because an application can be added or updated easily, reduces hardware costs, and much more. With virtualization you can present a set of physical resources as a cluster of disposable virtual machines.","same":false,"a":"虚拟化可以更高效地利用物理服务器的资源，并实现更好的可扩展性，因为应用程序可以轻松地添加或更新，还能降低硬件成本等。通过虚拟化，您可以将一组物理资源呈现为可重复使用的虚拟机集群。","b":"虚拟化可以更好地利用物理服务器的资源，并实现更好的可扩展性，因为应用程序可以轻松地添加或更新，还能降低硬件成本，等等。通过虚拟化，您可以将一组物理资源呈现为可重复使用的虚拟机集群。","aIs":"Q4_K_M"},{"id":7,"kind":"技术文档","site":"React 文档","source":"To build a static version of your app that renders your data model, you’ll want to build components that reuse other components and pass data using props. Props are a way of passing data from parent to child. (If you’re familiar with the concept of state, don’t use state at all to build this static version. State is reserved only for interactivity, that is, data that changes over time. Since this is a static version of the app, you don’t need it.)","same":false,"a":"要构建一个可以渲染你数据模型的静态应用版本，你需要创建重用其他组件并通过 props 传递数据的组件。props 是将从父组件传递到子组件的数据方式。（如果你熟悉状态的概念，就不要使用状态来构建这个静态版本了。状态仅用于交互，即数据随时间变化的部分。由于这是一个静态应用版本，因此你不需要状态。）","b":"要构建一个能渲染你数据模型的静态应用版本，你需要创建复用其他组件的组件，并通过 props 传递数据。props 是父组件向子组件传递数据的一种方式。（如果你熟悉 state 这个概念，就不必使用 state 来构建这个静态版本了。state 仅用于交互功能，也就是数据随时间变化的部分。由于这是一个静态应用版本，因此你不需要 state。）","aIs":"Q8_0"},{"id":8,"kind":"技术文档","site":"React 文档","source":"Add state to the component with the useState() Hook. Hooks are special functions that let you “hook into” React. Add two state variables at the top of FilterableProductTable and specify their initial state:","same":true,"a":"使用 useState() 钩子为组件添加状态。钩子是特殊的函数，能让你“接入” React。在 FilterableProductTable 的顶部添加两个状态变量，并指定它们的初始状态："},{"id":9,"kind":"技术文档","site":"Python 教程","source":"When a class defines an __init__() method, class instantiation automatically invokes __init__() for the newly created class instance. So in this example, a new, initialized instance can be obtained by:","same":false,"a":"当类定义一个 __init__() 方法时，类的实例化会自动调用新创建的类实例的 __init__() 方法。因此，在这个例子中，可以通过以下方式获得一个已初始化的新实例：","b":"当类定义了一个 __init__() 方法时，类的实例化会自动调用 __init__() 方法，为新创建的类实例进行初始化。因此，在这个例子中，可以通过以下方式获得一个已初始化的新实例：","aIs":"Q4_K_M"},{"id":10,"kind":"技术文档","site":"Python 教程","source":"Execution of a derived class definition proceeds the same as for a base class. When the class object is constructed, the base class is remembered. This is used for resolving attribute references: if a requested attribute is not found in the class, the search proceeds to look in the base class. This rule is applied recursively if the base class itself is derived from some other class.","same":false,"a":"派生类的定义执行过程与基类相同。当类对象被创建时，基类会被记住。这用于解决属性引用：如果请求的属性在类中找不到，搜索就会继续到基类。如果基类本身也是某个其他类的派生类，这条规则会递归应用。","b":"派生类的定义执行过程与基类相同。当类对象被创建时，基类会被记住。这用于解决属性引用：如果请求的属性在类中找不到，搜索将转向基类。如果基类本身又派生自其他类，此规则将递归应用。","aIs":"Q4_K_M"},{"id":11,"kind":"百科科普","site":"维基百科","source":"Carbon fixation produces the three-carbon sugar intermediate, which is then converted into the final carbohydrate products. The simple carbon sugars photosynthesis produces are then used to form other organic compounds, such as the building material cellulose, the precursors for lipid and amino acid biosynthesis, or as a fuel in cellular respiration. The latter occurs not only in plants but also in animals when the carbon and energy from plants is passed through a food chain.","same":false,"a":"碳固定作用会产生三碳糖中间体，随后这些中间体会被转化为最终的碳水化合物产物。光合作用产生的简单碳糖则用于形成其他有机化合物，例如构成细胞壁的物质纤维素，以及脂质和氨基酸生物合成的前体，或作为细胞呼吸中的燃料。后者不仅发生在植物中，在食物链中传递植物提供的碳和能量时，也会发生在动物体内。","b":"碳固定作用会产生三碳糖中间体，随后这些中间体会被转化为最终的碳水化合物产物。光合作用产生的简单碳糖则被用于形成其他有机化合物，例如构成细胞壁的物质纤维素，以及脂质和氨基酸生物合成的前体，或作为细胞呼吸作用中的燃料。后者不仅发生在植物中，当植物中的碳和能量通过食物链传递时，也会发生在动物体内。","aIs":"Q8_0"},{"id":12,"kind":"百科科普","site":"维基百科","source":"In 1779, Jan Ingenhousz repeated Priestley's experiments. He discovered that it was the influence of sunlight on the plant that could cause it to revive a mouse in a matter of hours.","same":false,"a":"1779年，扬·英根霍兹重复了普里斯特利的实验。他发现，正是阳光对植物的影响，能让植物在几小时内复活一只老鼠。","b":"1779年，Jan Ingenhousz重复了Priestley的实验。他发现，正是阳光对植物的影响，能让小鼠在几小时内恢复生机。","aIs":"Q8_0"},{"id":13,"kind":"百科科普","site":"维基百科","source":"The development of bleaching powder (calcium hypochlorite) by chemist Charles Tennant in 1800, based on the discoveries of Claude Louis Berthollet, revolutionised the bleaching processes in the textile industry by reducing the time required for the traditional process then in use: repeated exposure to the sun in fields after soaking the textiles with alkali or sour milk. Tennant's St Rollox Chemical Works, Glasgow, became the world's largest chemical plant.","same":false,"a":"1800年，化学家查尔斯·滕南特（Charles Tennant）基于克劳德·路易·贝尔托莱（Claude Louis Berthollet）的发现，成功开发了漂白粉（氯化钙），从而彻底改变了纺织行业的漂白工艺。此前，传统漂白方法需要先将织物用碱液或酸牛奶浸泡，再在田间反复日晒，而滕南特的斯特罗洛克斯化学工厂（St Rollox Chemical Works）在格拉斯哥成为当时全球最大的化工厂。","b":"1800年，化学家查尔斯·滕南特（Charles Tennant）基于克劳德·路易·贝尔托莱（Claude Louis Berthollet）的发现，成功开发了漂白粉（氯化钙），从而彻底改变了纺织行业的漂白工艺。此前，传统的漂白方法需要先将织物浸泡在碱液或酸牛奶中，然后反复在田间日晒，这一过程耗时极长。滕南特位于格拉斯哥的圣罗洛克斯化学工厂（St Rollox Chemical Works）后来成为世界上最大的化工厂。","aIs":"Q8_0"},{"id":14,"kind":"百科科普","site":"维基百科","source":"The Industrial Revolution concentrated labour into mills, factories, and mines, thus facilitating the organisation of combinations or trade unions advance the interests of working people. A union could demand better terms by withdrawing and halting production. Employers had to decide between giving in at a cost, or suffering the cost of the lost production. Skilled workers were difficult to replace, and these were the first to successfully advance their conditions through this kind of bargaining.","same":false,"a":"工业革命将劳动力集中在工厂、作坊和矿场中，从而为工人组织工会或贸易联盟以维护自身利益提供了便利。工会可以通过停止生产来要求更优厚的条款。雇主必须在让步（并为此付出代价）与承受生产损失的成本之间做出选择。熟练工人难以替代，而正是他们最先通过这种谈判方式成功改善了自己的工作条件。","b":"工业革命将劳动力集中到工厂、作坊和矿场中，从而为工人组织联合团体或工会以维护自身利益提供了便利。工会可以通过暂停生产来要求更优的条款。雇主必须在让步并承担相应成本，或者承受生产损失的代价之间做出选择。熟练工人难以替代，而正是他们最先通过这种谈判方式成功改善了自己的工作条件。","aIs":"Q8_0"},{"id":15,"kind":"百科科普","site":"维基百科","source":"Inflation numbers are often seasonally adjusted to differentiate expected cyclical cost shifts. For example, home heating costs are expected to rise in colder months, and seasonal adjustments are often used when measuring inflation to compensate for cyclical energy or fuel demand spikes. Inflation numbers may be averaged or otherwise subjected to statistical techniques to remove statistical noise and volatility of individual prices.","same":false,"a":"通胀数据通常经过季节调整，以区分预期的周期性成本变化。例如，冬季取暖成本预计会上升，因此在衡量通胀时，通常会使用季节调整方法来补偿周期性能源或燃料需求的波动。通胀数据可能会经过平均或采用其他统计方法，以消除统计噪声和个别价格的不稳定性。","b":"通胀数据通常会对数据进行季节性调整，以区分预期的周期性成本变化。例如，冬季取暖成本预计会上升，因此在衡量通胀时，通常会使用季节性调整来补偿周期性能源或燃料需求的激增。通胀数据可能会经过平均或采用其他统计方法，以消除统计噪声和个别价格波动的影响。","aIs":"Q8_0"},{"id":16,"kind":"百科科普","site":"维基百科","source":"In this formula, the general price level is related to the level of real economic activity (Q), the quantity of money (M) and the velocity of money (V). The formula itself is simply an uncontroversial accounting identity because the velocity of money (V) is defined residually from the equation to be the ratio of final nominal expenditure ( 𝑃 𝑄 ) to the quantity of money (M).","same":false,"a":"在这个公式中，一般价格水平与真实经济活动水平（Q）、货币数量（M）以及货币流通速度（V）有关。这个公式本身只是一个无需争议的会计恒等式，因为货币流通速度（V）是根据最终名义支出（PQ）与货币数量（M）的比率来定义的。","b":"在这个公式中，总体价格水平与真实经济活动水平（Q）、货币数量（M）和货币流通速度（V）有关。该公式本身只是一个无需争议的会计恒等式，因为货币流通速度（V）是根据最终名义支出（𝑃 𝑄）与货币数量（M）的比率来定义的。","aIs":"Q4_K_M"},{"id":17,"kind":"学术摘要","site":"arXiv","source":"The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.","same":false,"a":"主流的序列转译模型基于编码器-解码器架构中的复杂循环神经网络或卷积神经网络。表现最佳的模型还通过注意力机制连接了编码器和解码器。我们提出了一种全新的简单网络架构——Transformer，它完全基于注意力机制，彻底摒弃了循环和卷积操作。在两项机器翻译任务上的实验表明，这些模型在质量上更优，同时具有更强的并行性，且训练所需时间也显著减少。","b":"主流的序列转导模型基于编码器-解码器架构中的复杂循环或卷积神经网络。表现最佳的模型还通过注意力机制连接了编码器和解码器。我们提出了一种全新的简单网络架构——Transformer，它完全基于注意力机制，彻底摒弃了循环和卷积结构。在两项机器翻译任务上的实验表明，这些模型在质量上更优，同时具有更强的并行化能力，且训练所需时间显著减少。","aIs":"Q4_K_M"},{"id":18,"kind":"学术摘要","site":"arXiv","source":"We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers. As a result, the pre-trained BERT model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks, such as question answering and language inference, without substantial task-specific architecture modifications.","same":false,"a":"我们介绍了一种名为BERT的新语言表示模型，其中“BERT”代表“双向编码器表示来自Transformer”（Bidirectional Encoder Representations from Transformers）。与近期的语言表示模型不同，BERT的设计旨在通过在所有层中同时考虑左右上下文，对未标注文本进行预训练，从而生成深度双向表示。因此，只需通过添加一个输出层，即可对预训练的BERT模型进行微调，以创建适用于多种任务的顶尖模型，例如问答和语言推理任务，而无需对任务特定的架构进行重大修改。","b":"我们介绍了一种名为BERT的新语言表示模型，其全称是“双向编码器表示（Bidirectional Encoder Representations from Transformers）”。与近期的语言表示模型不同，BERT的设计是通过在所有层中同时考虑左右上下文，来预训练深度双向表示。因此，预训练的BERT模型只需通过添加一个输出层即可进行微调，从而为问答和语言推理等广泛任务创建出顶尖模型，而无需对任务特定架构进行重大修改。","aIs":"Q4_K_M"},{"id":19,"kind":"学术摘要","site":"arXiv","source":"An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible. Using GPT-3 175B as an example -- deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive.","same":false,"a":"自然语言处理的一个重要范式是，首先对通用领域的数据进行大规模预训练，然后针对特定任务或领域进行适配。随着我们预训练更大规模的模型，完全重新训练所有模型参数的全量微调变得难以实现。以 GPT-3 175B 为例——部署独立的微调模型实例，每个模型都包含 175B 个参数，成本极高。","b":"自然语言处理的一个重要范式是在通用领域数据上进行大规模预训练，然后针对特定任务或领域进行适配。随着模型规模的扩大，完全重新训练所有模型参数的全量微调变得难以实现。以 GPT-3 175B 为例，部署独立的微调模型实例（每个模型参数均为 175B）的成本极高。","aIs":"Q4_K_M"},{"id":20,"kind":"学术摘要","site":"arXiv","source":"Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.","same":false,"a":"大型预训练语言模型已被证明能够将其事实性知识存储在参数中，并在下游自然语言处理任务上实现顶尖性能。然而，它们访问并精确操控知识的能力仍有限，因此在知识密集任务上，其性能仍落后于任务专用架构。此外，如何为它们的决策提供来源证明并更新其世界知识，仍然是开放的研究问题。","b":"大型预训练语言模型已被证明能够在其参数中存储事实性知识，并在下游自然语言处理任务上进行微调后取得顶尖性能。然而，它们访问并精确操控知识的能力仍然有限，因此在知识密集任务上，其性能仍落后于任务专用架构。此外，为它们的决策提供来源证明并更新其世界知识仍然是开放的研究问题。","aIs":"Q4_K_M"},{"id":21,"kind":"标题与界面文字","site":"MDN","source":"In this article","same":true,"a":"在本文中"},{"id":22,"kind":"标题与界面文字","site":"MDN","source":"Emulating private methods with closures","same":true,"a":"使用闭包模拟私有方法"},{"id":23,"kind":"标题与界面文字","site":"Rust 官方教程","source":"What Is Ownership?","same":false,"a":"所有权是什么？","b":"什么是所有权？","aIs":"Q4_K_M"},{"id":24,"kind":"标题与界面文字","site":"Rust 官方教程","source":"The String Type","same":true,"a":"字符串类型"},{"id":25,"kind":"标题与界面文字","site":"Kubernetes 文档","source":"Why you need Kubernetes and what it can do","same":true,"a":"为什么需要 Kubernetes 以及它能做什么"},{"id":26,"kind":"标题与界面文字","site":"Kubernetes 文档","source":"Historical context for Kubernetes","same":true,"a":"Kubernetes 的历史背景"},{"id":27,"kind":"标题与界面文字","site":"React 文档","source":"Start with the mockup","same":true,"a":"从模型开始"},{"id":28,"kind":"划词短语","site":"常见搭配","source":"out of the box","same":true,"a":"开箱即用"},{"id":29,"kind":"划词短语","site":"常见搭配","source":"rate limit exceeded","same":true,"a":"超出速率限制"},{"id":30,"kind":"划词短语","site":"常见搭配","source":"breaking change","same":true,"a":"重大变更"},{"id":31,"kind":"划词短语","site":"常见搭配","source":"under the hood","same":true,"a":"引擎内部"},{"id":32,"kind":"划词短语","site":"常见搭配","source":"as a rule of thumb","same":true,"a":"通常来说"},{"id":33,"kind":"划词短语","site":"常见搭配","source":"spin up a new instance","same":false,"a":"启动一个新实例","b":"启动一个新的实例","aIs":"Q4_K_M"},{"id":34,"kind":"划词短语","site":"常见搭配","source":"deprecated","same":true,"a":"已弃用"},{"id":35,"kind":"划词短语","site":"常见搭配","source":"single source of truth","same":true,"a":"单一真理来源"}];
+  const VERSIONS = ["Q8_0", "Q4_K_M"];
+  const KEY = "ait-quality-review-dual";
+  const RATINGS = { good: "准确通顺", minor: "小毛病", bad: "有错误" };
+  const ISSUES = ["错译", "漏译", "术语不对", "不通顺", "没翻译", "多了内容"];
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } };
+  const state = load();
+  state.answers ??= {};
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const itemsEl = document.getElementById("items");
+  const kinds = [...new Set(DATA.map((it) => it.kind))];
+
+  // 每个要评的译文一个「评分位」：译文相同的条目一个（两个版本共用），不同的条目 A、B 各一个
+  const slots = DATA.flatMap((it) => it.same ? [{ key: `${it.id}`, item: it, side: null }] : [{ key: `${it.id}a`, item: it, side: "a" }, { key: `${it.id}b`, item: it, side: "b" }]);
+  const versionOf = (slot) => slot.side === null ? VERSIONS : [slot.side === "a" ? slot.item.aIs : VERSIONS.find((v) => v !== slot.item.aIs)];
+
+  const candidate = (slot, label, text) => `
+    <div class="cand" data-key="${slot.key}">
+      <h3>${label}<span class="who" hidden></span></h3>
+      <p lang="zh-CN">${esc(text)}</p>
+      <div class="choices" role="radiogroup" aria-label="第 ${slot.item.id} 条${label}的评价">
+        ${Object.entries(RATINGS).map(([v, l]) => `<label><input type="radio" name="r${slot.key}" value="${v}"> ${l}</label>`).join("")}
+      </div>
+      <div class="detail" hidden>
+        <div class="issues">${ISSUES.map((x) => `<label><input type="checkbox" data-issue="${x}"> ${x}</label>`).join("")}</div>
+        <input type="text" data-note placeholder="备注（可选）：哪里不对、应该怎么翻" aria-label="第 ${slot.item.id} 条${label}的备注">
+      </div>
+    </div>`;
+
+  itemsEl.innerHTML = kinds.map((kind) => `<h2 class="group">${esc(kind)}</h2>` + DATA.filter((it) => it.kind === kind).map((it) => `
+    <article class="item">
+      <div class="meta"><span>#${it.id}</span><span class="tag">${esc(it.kind)}</span><span>${esc(it.site)}</span></div>
+      <p class="source" lang="en">${esc(it.source)}</p>
+      ${it.same
+        ? candidate(slots.find((s) => s.key === `${it.id}`), "两个版本译文相同", it.a)
+        : candidate(slots.find((s) => s.key === `${it.id}a`), "译文 A", it.a) + candidate(slots.find((s) => s.key === `${it.id}b`), "译文 B", it.b)}
+    </article>`).join("")).join("");
+
+  const answer = (key) => (state.answers[key] ??= { rating: "", issues: [], note: "" });
+
+  function tallies() {
+    const t = Object.fromEntries(VERSIONS.map((v) => [v, { good: 0, minor: 0, bad: 0 }]));
+    const byKind = Object.fromEntries(kinds.map((k) => [k, Object.fromEntries(VERSIONS.map((v) => [v, { good: 0, minor: 0, bad: 0 }]))]));
+    for (const slot of slots) {
+      const r = state.answers[slot.key]?.rating;
+      if (!r) continue;
+      for (const v of versionOf(slot)) { t[v][r]++; byKind[slot.item.kind][v][r]++; }
+    }
+    return { t, byKind };
+  }
+
+  function refresh() {
+    let done = 0;
+    for (const slot of slots) {
+      const a = state.answers[slot.key];
+      const box = itemsEl.querySelector(`.cand[data-key="${slot.key}"]`);
+      box.dataset.rating = a?.rating ?? "";
+      if (state.revealed) {
+        const who = box.querySelector(".who");
+        who.textContent = versionOf(slot).join(" / ");
+        who.hidden = false;
+      }
+      if (!a?.rating) continue;
+      done++;
+      box.querySelector(`input[value="${a.rating}"]`).checked = true;
+      box.querySelector(".detail").hidden = a.rating === "good";
+      for (const c of box.querySelectorAll("[data-issue]")) c.checked = a.issues.includes(c.dataset.issue);
+      box.querySelector("[data-note]").value = a.note;
+    }
+    document.getElementById("done").textContent = done;
+    document.getElementById("total").textContent = slots.length;
+    document.getElementById("reveal").disabled = done < slots.length;
+    if (!state.revealed) return;
+    const { t, byKind } = tallies();
+    document.getElementById("tally").innerHTML = `<tr><th>版本（各 ${DATA.length} 条）</th><th>准确通顺</th><th>小毛病</th><th>有错误</th></tr>` +
+      VERSIONS.map((v) => `<tr><td>${v}</td><td>${t[v].good}</td><td>${t[v].minor}</td><td>${t[v].bad}</td></tr>`).join("");
+    document.getElementById("by-kind").innerHTML = `<tr><th>类别</th><th>条数</th>${VERSIONS.map((v) => `<th>${v} 准确 / 小毛病 / 错误</th>`).join("")}</tr>` +
+      kinds.map((k) => `<tr><td>${esc(k)}</td><td>${DATA.filter((it) => it.kind === k).length}</td>${VERSIONS.map((v) => `<td>${byKind[k][v].good} / ${byKind[k][v].minor} / ${byKind[k][v].bad}</td>`).join("")}</tr>`).join("");
+    document.getElementById("summary").hidden = false;
+  }
+
+  itemsEl.addEventListener("change", (e) => {
+    const box = e.target.closest(".cand");
+    const a = answer(box.dataset.key);
+    if (e.target.type === "radio") a.rating = e.target.value;
+    if (e.target.dataset.issue) a.issues = [...box.querySelectorAll("[data-issue]:checked")].map((c) => c.dataset.issue);
+    save();
+    refresh();
+  });
+  itemsEl.addEventListener("input", (e) => {
+    if (!("note" in e.target.dataset)) return;
+    answer(e.target.closest(".cand").dataset.key).note = e.target.value;
+    save();
+  });
+
+  document.getElementById("reveal").addEventListener("click", () => {
+    state.revealed = true;
+    save();
+    refresh();
+    document.getElementById("summary").scrollIntoView({ behavior: "smooth" });
+  });
+
+  function report() {
+    const { t, byKind } = tallies();
+    const rated = slots.filter((s) => state.answers[s.key]?.rating).length;
+    const lines = [`译文质量评估结果（Index-Translate-2B，Q8_0 与 Q4_K_M，已评 ${rated} / ${slots.length} 个译文，${DATA.filter((d) => d.same).length} 条两版相同）`];
+    for (const v of VERSIONS) lines.push(`${v}：准确通顺 ${t[v].good}，小毛病 ${t[v].minor}，有错误 ${t[v].bad}`);
+    lines.push("按类别（准确 / 小毛病 / 错误）：");
+    for (const k of kinds) lines.push(`- ${k}：${VERSIONS.map((v) => `${v} ${byKind[k][v].good}/${byKind[k][v].minor}/${byKind[k][v].bad}`).join("，")}`);
+    const problems = slots.filter((s) => ["minor", "bad"].includes(state.answers[s.key]?.rating));
+    if (problems.length > 0) lines.push("问题明细：");
+    for (const s of problems) {
+      const a = state.answers[s.key];
+      const label = s.side === null ? "两版相同" : `译文 ${s.side.toUpperCase()}=${versionOf(s)[0]}`;
+      lines.push(`#${s.item.id}（${label}）${RATINGS[a.rating]}${a.issues.length ? `［${a.issues.join("、")}］` : ""}${a.note ? ` 备注：${a.note}` : ""}`);
+    }
+    return lines.join("\n");
+  }
+
+  document.getElementById("copy").addEventListener("click", async () => {
+    const text = report();
+    const note = document.getElementById("copy-note");
+    const fallback = document.getElementById("fallback");
+    document.getElementById("summary").hidden = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      note.textContent = "已复制，发给 Claude 即可。";
+      fallback.hidden = true;
+    } catch {
+      fallback.value = text;
+      fallback.hidden = false;
+      fallback.select();
+      note.textContent = "浏览器不让自动复制：下面的内容已选中，按 ⌘C 复制。";
+    }
+    document.getElementById("summary").scrollIntoView({ behavior: "smooth" });
+  });
+
+  refresh();
+</script>
+</body>
+</html>

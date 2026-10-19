@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>译文质量评测报告</title>
+<style>
+  /* 与 quant-blind-test / quality-review / glossary-and-qa-checklist 同一套样式 */
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --panel: #edf0f5; --fg: #18202c; --muted: #5a6375; --line: #c5ccd8;
+    --accent: #2753c8; --accent-soft: #e5ecfb; --good: #15803d; --minor: #b45309; --bad: #b91c1c;
+    --font: -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f131a; --surface: #171c25; --panel: #131821; --fg: #e3e7ee; --muted: #9aa3b5; --line: #353d4c;
+      --accent: #86a5ff; --accent-soft: #1c2742; --good: #4ade80; --minor: #fbbf24; --bad: #f87171; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--font); }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 16px 80px; display: grid; gap: 24px; }
+  h1 { margin: 0; font-size: 26px; }
+  h2 { margin: 0; font-size: 19px; }
+  h3 { margin: 20px 0 10px; font-size: 16px; }
+  h3:first-of-type { margin-top: 0; }
+  .lead { margin: 6px 0 0; color: var(--muted); max-width: 760px; }
+  .bar { position: sticky; top: 0; z-index: 2; display: flex; gap: 14px; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .bar nav { display: flex; gap: 14px; font-size: 14px; flex-wrap: wrap; }
+  .bar nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+  .bar nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  button { font: inherit; font-size: 14px; border-radius: 8px; padding: 6px 14px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 26px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .stat.good b { color: var(--good); } .stat.minor b { color: var(--minor); } .stat.bad b { color: var(--bad); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; white-space: nowrap; }
+  tbody tr:hover { background: var(--panel); }
+  td code, .src { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--panel); border-radius: 4px; padding: 1px 5px; }
+  #items { display: grid; gap: 14px; }
+  .item { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+  .item[data-rating="good"] { border-left-color: var(--good); }
+  .item[data-rating="minor"] { border-left-color: var(--minor); }
+  .item[data-rating="bad"] { border-left-color: var(--bad); }
+  .meta { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+  .tag { background: var(--panel); border-radius: 999px; padding: 0 9px; font-size: 12px; }
+  .source { font-family: var(--serif); font-size: 15px; margin: 0; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cand { border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; background: var(--bg); min-width: 0; display: grid; gap: 6px; }
+  .cand h4 { margin: 0; font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .who { color: var(--muted); font-weight: 400; font-family: ui-monospace, Menlo, monospace; }
+  .cand p { margin: 0; word-break: break-word; }
+  .badge { font-size: 12px; border-radius: 999px; padding: 0 8px; line-height: 19px; border: 1px solid currentColor; }
+  .badge.good { color: var(--good); } .badge.minor { color: var(--minor); } .badge.bad { color: var(--bad); }
+  .issues { display: flex; gap: 6px; flex-wrap: wrap; }
+  .issue { font-size: 12px; background: var(--panel); border-radius: 4px; padding: 0 6px; color: var(--muted); }
+  .why { font-size: 13px; color: var(--muted); }
+  .note { color: var(--muted); font-size: 13px; margin: 0; }
+  .verdict { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .pick { margin: 0; font-size: 13px; color: var(--accent); }
+  @media (max-width: 680px) { .pair { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr; } .bar { position: static; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>译文质量评测报告</h1>
+    <p class="lead">对象：Index-Translate-2B 的 Q8_0 与 Q4_K_M 两个量化版本，共 35 条真实网页内容（技术文档 10、百科科普 6、学术摘要 4、标题与界面 7、划词短语 8）。其中 16 条两版译文完全相同，19 条分 A/B 各评一次，合计 54 个评分位。评级标准：「准确通顺」可直接发布；「小毛病」能读懂但需润色；「有错误」语义或术语错，必须修。</p>
+  </header>
+
+  <div class="bar">
+    <nav>
+      <a href="#summary">摘要</a>
+      <a href="#defects">硬伤清单</a>
+      <a href="#details">逐条明细</a>
+      <a href="#patterns">系统性倾向</a>
+    </nav>
+    <button id="copy" type="button">复制为 Markdown</button>
+  </div>
+
+  <section id="summary">
+    <h2>一、摘要</h2>
+    <div class="stats" id="stats"></div>
+    <div class="table-wrap">
+      <table id="compare"></table>
+    </div>
+    <div class="verdict" id="verdict"></div>
+    <p class="note">错误率 15% 是本轮最值得注意的数字：35 条里有 8 个评分位判为「有错误」，其中 4 条是两版共犯，说明瓶颈在模型能力与 prompt 约束，不在量化精度。</p>
+  </section>
+
+  <section id="defects">
+    <h2>二、硬伤清单（必须修）</h2>
+    <div class="table-wrap">
+      <table data-md data-title="硬伤清单">
+        <thead><tr><th>#</th><th>问题</th><th>译文</th><th>应为</th><th>范围</th></tr></thead>
+        <tbody>
+          <tr><td>6</td><td>语义反转</td><td>disposable virtual machines →「可重复使用的虚拟机」</td><td>一次性（可随意销毁）的虚拟机</td><td>两版共犯</td></tr>
+          <tr><td>13</td><td>化学名错</td><td>calcium hypochlorite →「氯化钙」</td><td>次氯酸钙（氯化钙是另一种物质）</td><td>两版共犯</td></tr>
+          <tr><td>27</td><td>术语错</td><td>mockup →「模型」</td><td>设计稿 / 原型图（「模型」会与 model 混淆）</td><td>两版共犯</td></tr>
+          <tr><td>4</td><td>未译 + 定语错挂</td><td>「通过 drop 函数释放内存的 scoping、所有权和内存之间的关系」</td><td>scoping 应译「作用域」；原文是三项并列，不是「释放内存的」修饰全部</td><td>两版共犯</td></tr>
+          <tr><td>7</td><td>病句</td><td>「props 是将从父组件传递到子组件的数据方式」</td><td>props 是把数据从父组件传到子组件的一种方式</td><td>仅 A（Q8_0）</td></tr>
+          <tr><td>12</td><td>指代丢失</td><td>「能让小鼠在几小时内恢复生机」</td><td>it 指植物：能让植物在几小时内救活一只老鼠</td><td>仅 B（Q4_K_M）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="details">
+    <h2>三、逐条明细</h2>
+    <p class="note">卡片左边框颜色＝该条最差评级：绿＝准确通顺，琥珀＝小毛病，红＝有错误。两版相同的条目只列一次。</p>
+    <div id="items"></div>
+  </section>
+
+  <section id="patterns">
+    <h2>四、系统性倾向与建议</h2>
+
+    <h3>1. 两个量化版本确实打平</h3>
+    <p style="margin:0">19 对可分条目里 Q8_0 胜 7、Q4_K_M 胜 6、平 6。加上盲评页的 12:12:8，两次独立抽样都指向「无可辨差异」。按项目规则取更快的 Q4_K_M（单条 303 ms vs 390 ms，123 tok/s vs 94 tok/s）。</p>
+
+    <h3>2. 错误集中在四类，与量化无关</h3>
+    <div class="table-wrap">
+      <table data-md data-title="错误类型分布">
+        <thead><tr><th>类型</th><th>实例</th><th>根因判断</th></tr></thead>
+        <tbody>
+          <tr><td>专业名词硬译</td><td>transduction→转译、resolving→解决、truth→真理、mockup→模型</td><td>词表缺领域术语，模型按字面猜</td></tr>
+          <tr><td>语义极性判断</td><td>disposable→可重复使用</td><td>否定/反向词识别弱</td></tr>
+          <tr><td>长句结构塌陷</td><td>#4 三项并列被误修饰、#13 两句粘连、#7 定语堆到失去谓语</td><td>多定语 + 并列结构解析失败</td></tr>
+          <tr><td>指代与省略</td><td>#12 it→植物 丢失、#4 scoping 未译、#20 when fine-tuned 漏译</td><td>回指链和限定成分易丢</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3. 建议动作</h3>
+    <ol style="margin:0; padding-left:20px; display:grid; gap:6px;">
+      <li><b>术语表扩容</b>：把 disposable / transduction / mockup / single source of truth / resolve / scoping 六条加进 <code>glossary-and-qa-checklist.html</code>，并同步到 prompt 的术语约束。</li>
+      <li><b>P0 检测脚本</b>：译文里出现未在白名单内的连续 ASCII 词（如 scoping、mockup 原词）即报警；专名与化学名走强制查表。</li>
+      <li><b>长句处理</b>：超过 60 词的句子先切分再译，或对并列结构（A, B, and C）单独做结构校验，避免 #4 那种定语错挂。</li>
+      <li><b>回填基准</b>：把本报告的 54 个评分位作为回归基线，每次改 prompt 后重跑同样 35 条，比较「有错误」数量是否下降。</li>
+    </ol>
+  </section>
+
+  <p class="note">原文摘自 MDN（CC BY-SA 2.5）、Rust 官方教程（MIT / Apache-2.0）、Kubernetes 文档（CC BY 4.0）、React 文档（CC BY 4.0）、Python 文档（PSF）、维基百科（CC BY-SA 4.0）与 arXiv 论文摘要（版权归论文作者），仅用于本项目内部评估。</p>
+</main>
+<script>
+const DATA = [
+ {i:1,k:"技术文档",s:"MDN",same:true,src:"Closures are useful because they let you associate data (the lexical environment) with a function that operates on that data. This has obvious parallels to object-oriented programming, where objects allow you to associate data (the object's properties) with one or more methods.",
+  a:"闭包很有用，因为它们能让你将数据（词法环境）与一个处理该数据的函数关联起来。这与面向对象编程有明显的相似之处，在面向对象编程中，对象能让你将数据（对象的属性）与一个或多个方法关联起来。",
+  r:"good",is:[],n:"忠实；「在面向对象编程中」重复两次，可接受。"},
+ {i:2,k:"技术文档",s:"MDN",same:true,src:"In the example above, there's a series of nested functions, all of which have access to the outer functions' scope. In this context, we can say that closures have access to all outer scopes.",
+  a:"在上面的例子中，有一系列嵌套函数，它们都能访问外部函数的作用域。在这种情况下，我们可以说闭包能够访问所有外部作用域。",
+  r:"good",is:[],n:"无问题。"},
+ {i:3,k:"技术文档",s:"Rust 官方教程",same:false,aIs:"Q8_0",
+  src:"That first part is done by us: When we call String::from, its implementation requests the memory it needs. This is pretty much universal in programming languages.",
+  a:"这部分由我们完成：当我们调用 String::from 时，它的实现会请求所需的内存。这在大多数编程语言中都是通用的。",
+  b:"这部分由我们负责：当我们调用 String::from 时，它的实现会请求所需的内存。这在大多数编程语言中都是通用的。",
+  ra:"good",ia:[],na:"「完成」贴 done by us。",
+  rb:"minor",ib:["错译"],nb:"「负责」引出责任义，原文只表示这个动作由我们发起。"},
+ {i:4,k:"技术文档",s:"Rust 官方教程",same:false,aIs:"Q8_0",
+  src:"The inverse of this is true for the relationship between scoping, ownership, and memory being freed via the drop function as well. When you assign a completely new value to an existing variable, Rust will call drop and free the original value's memory immediately.",
+  a:"对于通过 drop 函数释放内存的 scoping、所有权和内存之间的关系，其逆命题同样成立。当你为一个现有变量赋一个完全新的值时，Rust 会立即调用 drop 并释放原始值的内存。",
+  b:"对于通过 drop 函数释放内存的 scoping、所有权以及内存之间的关系，也成立同样的反向关系。当你对一个现有变量赋一个完全新的值时，Rust 会立即调用 drop 并释放原始值的内存。",
+  ra:"bad",ia:["没翻译","不通顺"],na:"scoping 未译；「通过 drop 释放内存的」错误修饰三个并列项。",
+  rb:"bad",ib:["没翻译","不通顺"],nb:"同样未译 scoping；「也成立同样的反向关系」语序别扭。"},
+ {i:5,k:"技术文档",s:"Kubernetes 文档",same:false,aIs:"Q8_0",
+  src:"Kubernetes is not a traditional, all-inclusive PaaS (Platform as a Service) system. Since Kubernetes operates at the container level rather than at the hardware level, it provides some generally applicable features common to PaaS offerings, such as deployment, scaling, load balancing, and lets users integrate their logging, monitoring, and alerting solutions.",
+  a:"Kubernetes 并非传统的、覆盖全面的 PaaS（平台即服务）系统。由于 Kubernetes 在容器层面运行，而非硬件层面，因此它提供了一些适用于 PaaS 服务的通用功能，例如部署、扩展、负载均衡，并允许用户集成自己的日志记录、监控和警报解决方案。",
+  b:"Kubernetes 并非传统的、覆盖全面的平台即服务（PaaS）系统。由于 Kubernetes 在容器层面运行而非硬件层面，它提供了一些适用于 PaaS 服务的通用功能，例如部署、扩展、负载均衡，并允许用户集成自己的日志记录、监控和警报解决方案。",
+  ra:"minor",ia:["不通顺"],na:"「由于…因此…」因果重复。",
+  rb:"good",ib:[],nb:"去掉「因此」后句子干净。"},
+ {i:6,k:"技术文档",s:"Kubernetes 文档",same:false,aIs:"Q4_K_M",
+  src:"Virtualization allows better utilization of resources in a physical server and allows better scalability because an application can be added or updated easily, reduces hardware costs, and much more. With virtualization you can present a set of physical resources as a cluster of disposable virtual machines.",
+  a:"虚拟化可以更高效地利用物理服务器的资源，并实现更好的可扩展性，因为应用程序可以轻松地添加或更新，还能降低硬件成本等。通过虚拟化，您可以将一组物理资源呈现为可重复使用的虚拟机集群。",
+  b:"虚拟化可以更好地利用物理服务器的资源，并实现更好的可扩展性，因为应用程序可以轻松地添加或更新，还能降低硬件成本，等等。通过虚拟化，您可以将一组物理资源呈现为可重复使用的虚拟机集群。",
+  ra:"bad",ia:["错译"],na:"disposable 译「可重复使用」，语义反转，应为「一次性」；「更高效」属解释性增译。",
+  rb:"bad",ib:["错译"],nb:"同样把 disposable 译反；「更好地利用」更贴 better。"},
+ {i:7,k:"技术文档",s:"React 文档",same:false,aIs:"Q8_0",
+  src:"To build a static version of your app that renders your data model, you'll want to build components that reuse other components and pass data using props. Props are a way of passing data from parent to child.",
+  a:"要构建一个可以渲染你数据模型的静态应用版本，你需要创建重用其他组件并通过 props 传递数据的组件。props 是将从父组件传递到子组件的数据方式。",
+  b:"要构建一个能渲染你数据模型的静态应用版本，你需要创建复用其他组件的组件，并通过 props 传递数据。props 是父组件向子组件传递数据的一种方式。",
+  ra:"bad",ia:["不通顺"],na:"「props 是将从父组件传递到子组件的数据方式」缺谓语中心，是病句。",
+  rb:"good",ib:[],nb:"拆句后结构正确，定义句译得准。"},
+ {i:8,k:"技术文档",s:"React 文档",same:true,src:"Add state to the component with the useState() Hook. Hooks are special functions that let you “hook into” React.",
+  a:"使用 useState() 钩子为组件添加状态。钩子是特殊的函数，能让你“接入” React。",
+  r:"good",is:[],n:"hook into 译「接入」贴切。"},
+ {i:9,k:"技术文档",s:"Python 教程",same:false,aIs:"Q4_K_M",
+  src:"When a class defines an __init__() method, class instantiation automatically invokes __init__() for the newly created class instance.",
+  a:"当类定义一个 __init__() 方法时，类的实例化会自动调用新创建的类实例的 __init__() 方法。",
+  b:"当类定义了一个 __init__() 方法时，类的实例化会自动调用 __init__() 方法，为新创建的类实例进行初始化。",
+  ra:"minor",ia:["不通顺"],na:"「调用新创建的类实例的 __init__() 方法」两层定语缠绕。",
+  rb:"good",ib:[],nb:"拆成两个小句，意思清楚。"},
+ {i:10,k:"技术文档",s:"Python 教程",same:false,aIs:"Q4_K_M",
+  src:"This is used for resolving attribute references: if a requested attribute is not found in the class, the search proceeds to look in the base class.",
+  a:"这用于解决属性引用：如果请求的属性在类中找不到，搜索就会继续到基类。",
+  b:"这用于解决属性引用：如果请求的属性在类中找不到，搜索将转向基类。",
+  ra:"minor",ia:["术语不对"],na:"resolving 应作「解析」；「继续到基类」略生硬。",
+  rb:"minor",ib:["术语不对"],nb:"同样作「解决」；「搜索将转向基类」比 A 顺。"},
+ {i:11,k:"百科科普",s:"维基百科",same:false,aIs:"Q8_0",
+  src:"The simple carbon sugars photosynthesis produces are then used to form other organic compounds, such as the building material cellulose... The latter occurs not only in plants but also in animals when the carbon and energy from plants is passed through a food chain.",
+  a:"光合作用产生的简单碳糖则用于形成其他有机化合物，例如构成细胞壁的物质纤维素，以及脂质和氨基酸生物合成的前体，或作为细胞呼吸中的燃料。后者不仅发生在植物中，在食物链中传递植物提供的碳和能量时，也会发生在动物体内。",
+  b:"光合作用产生的简单碳糖则被用于形成其他有机化合物，例如构成细胞壁的物质纤维素，以及脂质和氨基酸生物合成的前体，或作为细胞呼吸作用中的燃料。后者不仅发生在植物中，当植物中的碳和能量通过食物链传递时，也会发生在动物体内。",
+  ra:"minor",ia:["不通顺"],na:"末句「在食物链中传递…时」缺「当」，句子断裂。",
+  rb:"minor",ib:["多了内容"],nb:"「构成细胞壁的物质纤维素」加了原文没有的「细胞壁」；末句结构正确。"},
+ {i:12,k:"百科科普",s:"维基百科",same:false,aIs:"Q8_0",
+  src:"In 1779, Jan Ingenhousz repeated Priestley's experiments. He discovered that it was the influence of sunlight on the plant that could cause it to revive a mouse in a matter of hours.",
+  a:"1779年，扬·英根霍兹重复了普里斯特利的实验。他发现，正是阳光对植物的影响，能让植物在几小时内复活一只老鼠。",
+  b:"1779年，Jan Ingenhousz重复了Priestley的实验。他发现，正是阳光对植物的影响，能让小鼠在几小时内恢复生机。",
+  ra:"minor",ia:["不通顺"],na:"「能让植物在几小时内复活一只老鼠」语序生硬，但指代正确。",
+  rb:"bad",ib:["错译","没翻译"],nb:"it 指植物，B 变成小鼠自行恢复生机，因果链丢失；两位人名未译。"},
+ {i:13,k:"百科科普",s:"维基百科",same:false,aIs:"Q8_0",
+  src:"The development of bleaching powder (calcium hypochlorite) by chemist Charles Tennant in 1800... revolutionised the bleaching processes in the textile industry by reducing the time required for the traditional process then in use: repeated exposure to the sun in fields after soaking the textiles with alkali or sour milk.",
+  a:"1800年，化学家查尔斯·滕南特（Charles Tennant）基于克劳德·路易·贝尔托莱的发现，成功开发了漂白粉（氯化钙），从而彻底改变了纺织行业的漂白工艺。此前，传统漂白方法需要先将织物用碱液或酸牛奶浸泡，再在田间反复日晒，而滕南特的斯特罗洛克斯化学工厂（St Rollox Chemical Works）在格拉斯哥成为当时全球最大的化工厂。",
+  b:"1800年，化学家查尔斯·滕南特（Charles Tennant）基于克劳德·路易·贝尔托莱的发现，成功开发了漂白粉（氯化钙），从而彻底改变了纺织行业的漂白工艺。此前，传统的漂白方法需要先将织物浸泡在碱液或酸牛奶中，然后反复在田间日晒，这一过程耗时极长。滕南特位于格拉斯哥的圣罗洛克斯化学工厂（St Rollox Chemical Works）后来成为世界上最大的化工厂。",
+  ra:"bad",ia:["术语不对","漏译","不通顺"],na:"calcium hypochlorite 译「氯化钙」（应为次氯酸钙）；漏译 reducing the time；两句被「而」粘连成一句。",
+  rb:"minor",ib:["术语不对"],nb:"同样误作「氯化钙」；分句清楚，并用「耗时极长」补回了漏掉的信息。"},
+ {i:14,k:"百科科普",s:"维基百科",same:false,aIs:"Q8_0",
+  src:"The Industrial Revolution concentrated labour into mills, factories, and mines, thus facilitating the organisation of combinations or trade unions... Employers had to decide between giving in at a cost, or suffering the cost of the lost production.",
+  a:"工业革命将劳动力集中在工厂、作坊和矿场中，从而为工人组织工会或贸易联盟以维护自身利益提供了便利。工会可以通过停止生产来要求更优厚的条款。雇主必须在让步（并为此付出代价）与承受生产损失的成本之间做出选择。",
+  b:"工业革命将劳动力集中到工厂、作坊和矿场中，从而为工人组织联合团体或工会以维护自身利益提供了便利。工会可以通过暂停生产来要求更优的条款。雇主必须在让步并承担相应成本，或者承受生产损失的代价之间做出选择。",
+  ra:"minor",ia:["术语不对","漏译"],na:"trade union 译「贸易联盟」（应为工会）；漏译 withdrawing。",
+  rb:"minor",ib:["不通顺","漏译"],nb:"「必须在…，或者…之间」句式破；同样漏译 withdrawing。"},
+ {i:15,k:"百科科普",s:"维基百科",same:false,aIs:"Q8_0",
+  src:"Inflation numbers are often seasonally adjusted to differentiate expected cyclical cost shifts... seasonal adjustments are often used when measuring inflation to compensate for cyclical energy or fuel demand spikes. Inflation numbers may be averaged or otherwise subjected to statistical techniques to remove statistical noise and volatility of individual prices.",
+  a:"通胀数据通常经过季节调整，以区分预期的周期性成本变化。例如，冬季取暖成本预计会上升，因此在衡量通胀时，通常会使用季节调整方法来补偿周期性能源或燃料需求的波动。通胀数据可能会经过平均或采用其他统计方法，以消除统计噪声和个别价格的不稳定性。",
+  b:"通胀数据通常会对数据进行季节性调整，以区分预期的周期性成本变化。例如，冬季取暖成本预计会上升，因此在衡量通胀时，通常会使用季节性调整来补偿周期性能源或燃料需求的激增。通胀数据可能会经过平均或采用其他统计方法，以消除统计噪声和个别价格波动的影响。",
+  ra:"minor",ia:["错译"],na:"spikes 弱化为「波动」；句子整体干净。",
+  rb:"minor",ib:["不通顺"],nb:"「通胀数据会对数据进行季节性调整」主语重复。"},
+ {i:16,k:"百科科普",s:"维基百科",same:false,aIs:"Q4_K_M",
+  src:"In this formula, the general price level is related to the level of real economic activity (Q), the quantity of money (M) and the velocity of money (V). The formula itself is simply an uncontroversial accounting identity because the velocity of money (V) is defined residually from the equation to be the ratio of final nominal expenditure (PQ) to the quantity of money (M).",
+  a:"在这个公式中，一般价格水平与真实经济活动水平（Q）、货币数量（M）以及货币流通速度（V）有关。这个公式本身只是一个无需争议的会计恒等式，因为货币流通速度（V）是根据最终名义支出（PQ）与货币数量（M）的比率来定义的。",
+  b:"在这个公式中，总体价格水平与真实经济活动水平（Q）、货币数量（M）和货币流通速度（V）有关。该公式本身只是一个无需争议的会计恒等式，因为货币流通速度（V）是根据最终名义支出（𝑃 𝑄）与货币数量（M）的比率来定义的。",
+  ra:"minor",ia:["漏译"],na:"漏译 residually；把坏字形规整成 PQ，输出更干净。",
+  rb:"minor",ib:["漏译"],nb:"同样漏译 residually；保留了原样的坏字形，且「总体价格水平」不如「一般价格水平」规范。"},
+ {i:17,k:"学术摘要",s:"arXiv",same:false,aIs:"Q4_K_M",
+  src:"The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration... dispensing with recurrence and convolutions entirely.",
+  a:"主流的序列转译模型基于编码器-解码器架构中的复杂循环神经网络或卷积神经网络。表现最佳的模型还通过注意力机制连接了编码器和解码器。我们提出了一种全新的简单网络架构——Transformer，它完全基于注意力机制，彻底摒弃了循环和卷积操作。",
+  b:"主流的序列转导模型基于编码器-解码器架构中的复杂循环或卷积神经网络。表现最佳的模型还通过注意力机制连接了编码器和解码器。我们提出了一种全新的简单网络架构——Transformer，它完全基于注意力机制，彻底摒弃了循环和卷积结构。",
+  ra:"minor",ia:["术语不对"],na:"sequence transduction 应作「序列转导」，译「转译」不对。",
+  rb:"good",ib:[],nb:"术语正确，其余表述准确。"},
+ {i:18,k:"学术摘要",s:"arXiv",same:false,aIs:"Q4_K_M",
+  src:"We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.",
+  a:"我们介绍了一种名为BERT的新语言表示模型，其中“BERT”代表“双向编码器表示来自Transformer”。BERT的设计旨在通过在所有层中同时考虑左右上下文，对未标注文本进行预训练，从而生成深度双向表示。",
+  b:"我们介绍了一种名为BERT的新语言表示模型，其全称是“双向编码器表示（Bidirectional Encoder Representations from Transformers）”。BERT的设计是通过在所有层中同时考虑左右上下文，来预训练深度双向表示。",
+  ra:"minor",ia:["不通顺"],na:"中文全称硬译成「双向编码器表示来自Transformer」。",
+  rb:"minor",ib:["漏译"],nb:"漏译 from unlabeled text；全称处理更干净。"},
+ {i:19,k:"学术摘要",s:"arXiv",same:false,aIs:"Q4_K_M",
+  src:"An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible.",
+  a:"自然语言处理的一个重要范式是，首先对通用领域的数据进行大规模预训练，然后针对特定任务或领域进行适配。随着我们预训练更大规模的模型，完全重新训练所有模型参数的全量微调变得难以实现。",
+  b:"自然语言处理的一个重要范式是在通用领域数据上进行大规模预训练，然后针对特定任务或领域进行适配。随着模型规模的扩大，完全重新训练所有模型参数的全量微调变得难以实现。",
+  ra:"minor",ia:["不通顺"],na:"「随着我们预训练更大规模的模型」主语别扭。",
+  rb:"minor",ib:["不通顺"],nb:"「每个模型参数均为 175B」这类表述含义含糊（本条后半）。"},
+ {i:20,k:"学术摘要",s:"arXiv",same:false,aIs:"Q4_K_M",
+  src:"Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks.",
+  a:"大型预训练语言模型已被证明能够将其事实性知识存储在参数中，并在下游自然语言处理任务上实现顶尖性能。",
+  b:"大型预训练语言模型已被证明能够在其参数中存储事实性知识，并在下游自然语言处理任务上进行微调后取得顶尖性能。",
+  ra:"minor",ia:["漏译"],na:"漏译 when fine-tuned，把结论说成无条件的 SOTA。",
+  rb:"good",ib:[],nb:"保留了「进行微调后」这个前提。"},
+ {i:21,k:"标题与界面文字",s:"MDN",same:true,src:"In this article",a:"在本文中",r:"good",is:[],n:"目录标题，可用。"},
+ {i:22,k:"标题与界面文字",s:"MDN",same:true,src:"Emulating private methods with closures",a:"使用闭包模拟私有方法",r:"good",is:[],n:"准确。"},
+ {i:23,k:"标题与界面文字",s:"Rust 官方教程",same:false,aIs:"Q4_K_M",src:"What Is Ownership?",
+  a:"所有权是什么？",b:"什么是所有权？",
+  ra:"good",ia:[],na:"成立，语序偏口语。",
+  rb:"good",ib:[],nb:"更像章节标题，与官方中文版一致。"},
+ {i:24,k:"标题与界面文字",s:"Rust 官方教程",same:true,src:"The String Type",a:"字符串类型",r:"good",is:[],n:"准确。"},
+ {i:25,k:"标题与界面文字",s:"Kubernetes 文档",same:true,src:"Why you need Kubernetes and what it can do",a:"为什么需要 Kubernetes 以及它能做什么",r:"good",is:[],n:"准确。"},
+ {i:26,k:"标题与界面文字",s:"Kubernetes 文档",same:true,src:"Historical context for Kubernetes",a:"Kubernetes 的历史背景",r:"good",is:[],n:"context 译「背景」可接受。"},
+ {i:27,k:"标题与界面文字",s:"React 文档",same:true,src:"Start with the mockup",a:"从模型开始",r:"bad",is:["术语不对"],n:"mockup 指设计稿/原型图，译「模型」会与 model 混淆，读者会以为是机器学习模型。"},
+ {i:28,k:"划词短语",s:"常见搭配",same:true,src:"out of the box",a:"开箱即用",r:"good",is:[],n:"标准译法。"},
+ {i:29,k:"划词短语",s:"常见搭配",same:true,src:"rate limit exceeded",a:"超出速率限制",r:"good",is:[],n:"准确。"},
+ {i:30,k:"划词短语",s:"常见搭配",same:true,src:"breaking change",a:"重大变更",r:"good",is:[],n:"标准译法。"},
+ {i:31,k:"划词短语",s:"常见搭配",same:true,src:"under the hood",a:"引擎内部",r:"minor",is:["多了内容"],n:"under the hood 是「底层 / 内部实现」，「引擎内部」多出原文没有的「引擎」。"},
+ {i:32,k:"划词短语",s:"常见搭配",same:true,src:"as a rule of thumb",a:"通常来说",r:"good",is:[],n:"可接受；更贴原文的是「按经验来说」。"},
+ {i:33,k:"划词短语",s:"常见搭配",same:false,aIs:"Q4_K_M",src:"spin up a new instance",
+  a:"启动一个新实例",b:"启动一个新的实例",
+  ra:"good",ia:[],na:"更简洁，中文常省「的」。",
+  rb:"good",ib:[],nb:"成立，但略显啰嗦。"},
+ {i:34,k:"划词短语",s:"常见搭配",same:true,src:"deprecated",a:"已弃用",r:"good",is:[],n:"标准译法。"},
+ {i:35,k:"划词短语",s:"常见搭配",same:true,src:"single source of truth",a:"单一真理来源",r:"minor",is:["术语不对"],n:"通译「单一事实来源 / 唯一可信来源」，「真理来源」是字面硬译。"}
+];
+
+const RATE = { good: "准确通顺", minor: "小毛病", bad: "有错误" };
+/* 人工判定：同评级但仍有优劣之分时，记录本对结论。a/b 指页面上的 A、B 位，tie 表示不分伯仲。 */
+const WIN = { 3:"a", 4:"tie", 5:"b", 6:"tie", 7:"b", 9:"b", 10:"b", 11:"b", 12:"a", 13:"b", 14:"tie", 15:"tie", 16:"a", 17:"b", 18:"tie", 19:"tie", 20:"b", 23:"b", 33:"a" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const rank = { good: 0, minor: 1, bad: 2 };
+
+/* ---------- 统计 ---------- */
+const slots = DATA.flatMap((it) => it.same
+  ? [{ v: it.r }]
+  : [{ v: it.ra }, { v: it.rb }]);
+const count = { good: 0, minor: 0, bad: 0 };
+slots.forEach((s) => count[s.v]++);
+const total = slots.length;
+
+document.getElementById("stats").innerHTML = ["good", "minor", "bad"].map((k) =>
+  `<div class="stat ${k}"><b>${count[k]}</b><span>${RATE[k]}　${Math.round(count[k] / total * 100)}%</span></div>`
+).join("");
+
+/* ---------- 两版对比 ---------- */
+let q8 = 0, q4 = 0, tie = 0;
+for (const it of DATA) {
+  if (it.same) continue;
+  const bIs = it.aIs === "Q8_0" ? "Q4_K_M" : "Q8_0";
+  const w = WIN[it.i] || "tie";
+  if (w === "tie") { tie++; continue; }
+  (w === "a" ? it.aIs : bIs) === "Q8_0" ? q8++ : q4++;
+}
+const pairs = DATA.filter((it) => !it.same).length;
+document.getElementById("compare").innerHTML = `
+  <tr><th>可分条目对比</th><th>条数</th><th>说明</th></tr>
+  <tr><td>Q8_0 更好</td><td>${q8}</td><td>—</td></tr>
+  <tr><td>Q4_K_M 更好</td><td>${q4}</td><td>—</td></tr>
+  <tr><td>两版评级相同</td><td>${tie}</td><td>多为「小毛病」互抵，少数两条都准确</td></tr>
+  <tr><td>合计</td><td>${pairs}</td><td>另有 ${DATA.filter((it) => it.same).length} 条两版译文完全相同，只评一次</td></tr>`;
+
+document.getElementById("verdict").textContent =
+  `结论：${pairs} 对可分条目里 Q8_0 胜 ${q8}、Q4_K_M 胜 ${q4}、平 ${tie}，无可辨差异。` +
+  `两个量化版本的短板完全一致，问题在模型能力与 prompt 约束。按「差距不明显时选更快」的项目规则，默认配置维持 Q4_K_M。`;
+
+/* ---------- 逐条明细 ---------- */
+const candHtml = (label, who, text, rating, issues, note) => `
+  <div class="cand">
+    <h4>${label}${who ? `<span class="who">${esc(who)}</span>` : ""}<span class="badge ${rating}">${RATE[rating]}</span></h4>
+    <p>${esc(text)}</p>
+    ${issues && issues.length ? `<div class="issues">${issues.map((x) => `<span class="issue">${esc(x)}</span>`).join("")}</div>` : ""}
+    <p class="why">${esc(note || "")}</p>
+  </div>`;
+
+const kinds = [...new Set(DATA.map((it) => it.k))];
+document.getElementById("items").innerHTML = kinds.map((k) => {
+  const group = DATA.filter((it) => it.k === k);
+  const cards = group.map((it) => {
+    const worst = it.same ? it.r : (rank[it.ra] >= rank[it.rb] ? it.ra : it.rb);
+    const bIs = it.aIs === "Q8_0" ? "Q4_K_M" : "Q8_0";
+    const w = WIN[it.i] || "tie";
+    const pick = w === "tie" ? "两版不分伯仲" : `${w === "a" ? it.aIs : bIs} 更好`;
+    const body = it.same
+      ? `<div class="pair" style="grid-template-columns:1fr">${candHtml("两版相同", "", it.a, it.r, it.is, it.n)}</div>`
+      : `<div class="pair">
+           ${candHtml("A", it.aIs, it.a, it.ra, it.ia, it.na)}
+           ${candHtml("B", bIs, it.b, it.rb, it.ib, it.nb)}
+         </div>
+         <p class="pick">本对结论：${esc(pick)}</p>`;
+    return `<article class="item" data-rating="${worst}">
+      <div class="meta"><span>#${it.i}</span><span class="tag">${esc(it.s)}</span>${it.same ? `<span class="tag">两版一致</span>` : ""}</div>
+      <p class="source" lang="en">${esc(it.src)}</p>
+      ${body}
+    </article>`;
+  }).join("");
+  return `<h3>${esc(k)}（${group.length} 条）</h3>${cards}`;
+}).join("");
+
+/* ---------- 复制为 Markdown ---------- */
+document.getElementById("copy").addEventListener("click", async () => {
+  const L = [];
+  L.push("# 译文质量评测报告", "");
+  L.push(`共 ${DATA.length} 条，${total} 个评分位：准确通顺 ${count.good}、小毛病 ${count.minor}、有错误 ${count.bad}。`, "");
+  L.push(`可分条目 ${pairs} 对：Q8_0 胜 ${q8}、Q4_K_M 胜 ${q4}、平 ${tie}。`, "");
+  for (const k of kinds) {
+    L.push(`## ${k}`, "");
+    for (const it of DATA.filter((x) => x.k === k)) {
+      L.push(`### #${it.i}　${it.s}`, "", `原文：${it.src}`, "");
+      if (it.same) {
+        L.push(`译文：${it.a}`, "", `评级：${RATE[it.r]}${it.is.length ? "（" + it.is.join("、") + "）" : ""}　${it.n}`, "");
+      } else {
+        const bIs = it.aIs === "Q8_0" ? "Q4_K_M" : "Q8_0";
+        L.push(`A（${it.aIs}）：${it.a}`, "", `　评级：${RATE[it.ra]}${it.ia.length ? "（" + it.ia.join("、") + "）" : ""}　${it.na}`, "");
+        L.push(`B（${bIs}）：${it.b}`, "", `　评级：${RATE[it.rb]}${it.ib.length ? "（" + it.ib.join("、") + "）" : ""}　${it.nb}`, "");
+      }
+    }
+  }
+  const md = L.join("\n");
+  const btn = document.getElementById("copy");
+  try {
+    await navigator.clipboard.writeText(md);
+    btn.textContent = "已复制 " + md.length + " 字";
+  } catch {
+    btn.textContent = "复制失败，请手动选择";
+  }
+  setTimeout(() => { btn.textContent = "复制为 Markdown"; }, 2000);
+});
+</script>
+</body>
+</html>

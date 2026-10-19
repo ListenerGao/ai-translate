@@ -36,9 +36,3 @@ export class GlossaryFile {
     return { ok: true, count: entries.length };
   }
 }
-
-/** 合并术语：本次请求带的优先，同一原文（忽略大小写）只留一条 */
-export function mergeGlossary(primary: readonly GlossaryEntry[], secondary: readonly GlossaryEntry[]): GlossaryEntry[] {
-  const seen = new Set(primary.map((e) => e.from.trim().toLowerCase()));
-  return [...primary, ...secondary.filter((e) => !seen.has(e.from.trim().toLowerCase()))];
-}

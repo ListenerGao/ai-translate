@@ -94,8 +94,9 @@
 
     <div class="field">
       <label for="glossary">术语表</label>
-      <textarea id="glossary" spellcheck="false" placeholder="liveness probe=存活探针&#10;token=词元"></textarea>
+      <textarea id="glossary" spellcheck="false" placeholder="例如：liveness probe=存活探针"></textarea>
       <p class="hint">一行一条 <code>原文=译文</code>，<code>#</code> 开头的行是注释。只有段落里出现的术语才会发给模型。</p>
+      <p class="hint" id="builtin-glossary"></p>
       <ul class="error" id="glossary-errors" hidden></ul>
     </div>
 

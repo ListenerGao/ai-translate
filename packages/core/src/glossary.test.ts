@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { matchGlossary, parseGlossary } from "./glossary.ts";
+import { BUILTIN_GLOSSARY, matchGlossary, mergeGlossary, parseGlossary } from "./glossary.ts";
 
 describe("parseGlossary", () => {
   test("一行一条，忽略空行和 # 注释，去掉前后空格", () => {
@@ -56,3 +56,26 @@ describe("matchGlossary", () => {
     assert.deepEqual(matchGlossary("本地大模型很快", entries).map((e) => e.from), ["大模型"]);
   });
 });
+
+describe("mergeGlossary 与内置术语", () => {
+  test("前面的优先，同一原文忽略大小写只留一条", () => {
+    const merged = mergeGlossary([{ from: "Token", to: "令牌" }], [{ from: "token", to: "词元" }, { from: "prompt", to: "提示词" }]);
+    assert.deepEqual(merged, [{ from: "Token", to: "令牌" }, { from: "prompt", to: "提示词" }]);
+  });
+
+  test("内置术语能命中常见写法：句中、大写开头、多词术语；不误伤包含它的别的词", () => {
+    const hit = (text: string) => matchGlossary(text, BUILTIN_GLOSSARY).map((e) => e.to);
+    assert.deepEqual(hit("Start with the mockup"), ["设计稿"]);
+    assert.deepEqual(hit("Mockup first, code later."), ["设计稿"]);
+    assert.deepEqual(hit("Git is the single source of truth for the cluster."), ["单一事实来源"]);
+    assert.deepEqual(hit("The dominant sequence transduction models are based on RNNs."), ["序列转导"]);
+    assert.deepEqual(hit("Under the hood, React batches updates."), ["底层"]);
+    assert.deepEqual(hit("We collected many mockups."), []);
+  });
+
+  test("用户写了同一个原文时以用户的为准", () => {
+    const merged = mergeGlossary([{ from: "mockup", to: "原型图" }], BUILTIN_GLOSSARY);
+    assert.deepEqual(matchGlossary("Start with the mockup", merged), [{ from: "mockup", to: "原型图" }]);
+  });
+});
+

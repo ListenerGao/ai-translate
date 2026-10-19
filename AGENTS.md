@@ -27,8 +27,8 @@
 packages/core/      翻译核心：段落协议、Translator 接口与 llama-server 实现、prompt、术语表、结果校验、缓存键与缓存接口、调度队列、翻译流水线、错误码、模型配置
 apps/extension/     浏览器插件：后台调度与缓存、网页端段落提取与渲染、划词翻译、英文文章检测与自动开启、工具栏弹窗、设置页
 apps/server/        aitd 本机翻译服务：HTTP 接口、鉴权、调度、SQLite 缓存、术语表文件、日志（第二阶段开发中）
-scripts/            模型下载、模型启动、图标生成脚本
-tests/              e2e 用例、测试页面、模拟模型服务
+scripts/            模型下载、模型启动、图标生成脚本，译文回归检查（`qa.ts`、`qa/`）
+tests/              e2e 用例、测试页面、模拟模型服务、译文回归的样例和基线（`quality/`）
 docs/               架构与说明文档
 goals/              Goal 施工清单
 ```
@@ -43,6 +43,7 @@ goals/              Goal 施工清单
 - `npm test`：单测，Node 内置测试器，文件名 `*.test.ts`
 - `npm run build`：打包插件到 `apps/extension/dist/`
 - `npm run e2e`：构建后用 Playwright 自带的 Chromium 加载插件跑 e2e；首次先 `npm run e2e:install`（浏览器装进 `node_modules`，不动全局）
+- `npm run qa`：译文回归检查（要模型服务在运行）；换模型、量化版本、提示词或内置术语后必须跑，出现新问题退出码为 1
 - `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790），用到时自动启动模型（`AIT_LLAMA_PORT` 默认 8791，和 `start-model.sh` 冲突）；`AIT_MODEL_URL` 改连已在运行的模型服务
 - 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
 
