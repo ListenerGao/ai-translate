@@ -28,7 +28,8 @@ export type BackgroundToPage =
  */
 export type RuntimeMessage =
   | { type: "open-options" }
-  | { type: "translate-selection"; text: string }
+  /** target：划词气泡里临时选的目标语言，不传就用设置里的 */
+  | { type: "translate-selection"; text: string; target?: string }
   | { type: "page-state"; active: boolean }
   /** 工具栏弹窗：切换指定标签页的翻译，回复 TabStatus（页面不能翻译时为 null） */
   | { type: "toggle-tab"; tabId: number };

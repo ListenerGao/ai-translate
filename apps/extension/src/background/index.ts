@@ -38,8 +38,14 @@ const pipeline = new Pipeline({ cache, scheduler });
 /** 调度队列里的任务 id：段落 id 只在标签页内唯一 */
 const taskId = (tabId: number, segmentId: string) => `${tabId}:${segmentId}`;
 
-/** 按入队时的设置翻译一段 */
-async function translateSegment(tabId: number, segment: Segment, priority: number, signal?: AbortSignal): Promise<SegmentOutcome> {
+/** 按入队时的设置翻译一段；target 不传就用设置里的目标语言 */
+async function translateSegment(
+  tabId: number,
+  segment: Segment,
+  priority: number,
+  signal?: AbortSignal,
+  target?: string,
+): Promise<SegmentOutcome> {
   const s = await getSettings();
   const translator = new LlamaServerTranslator({ endpoint: s.endpoint, apiKey: s.apiKey, profile: getModelProfile(s.modelId) });
   const job = {
@@ -47,7 +53,7 @@ async function translateSegment(tabId: number, segment: Segment, priority: numbe
     segment,
     priority,
     source: s.source,
-    target: s.target,
+    target: target ?? s.target,
     model: s.modelId,
     glossary: parseGlossary(s.glossaryText).entries,
   };
@@ -145,7 +151,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMessage, sender, sendResponse:
       return false;
     case "translate-selection": {
       const tabId = sender.tab?.id ?? -1;
-      translateSegment(tabId, { id: `sel-${++selectionSeq}`, text: msg.text }, SELECTION_PRIORITY)
+      translateSegment(tabId, { id: `sel-${++selectionSeq}`, text: msg.text }, SELECTION_PRIORITY, undefined, msg.target)
         .then((r) => sendResponse({ ok: true, text: r.text }))
         .catch((err: unknown) => {
           const e = err instanceof TranslateError ? err : new TranslateError("server", String(err));

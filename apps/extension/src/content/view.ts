@@ -47,47 +47,8 @@ export function htmlLang(target: string): string {
   return target.toLowerCase() === "zh" ? "zh-CN" : target;
 }
 
-// 译文颜色：和原文区分开，又不用蓝色（网页链接多是蓝色，容易被当成链接）。
-// 看段落背后的背景是深是浅，分别用浅青色和深青色。
-// 不看文字颜色：浅色页面上的浅灰色副标题会被误判成深色页面。
-const COLOR_ON_LIGHT_PAGE = "#0f766e";
-const COLOR_ON_DARK_PAGE = "#5eead4";
-type Rgba = readonly [number, number, number, number];
-let colorProbe: CanvasRenderingContext2D | null = null;
-
-/** 任意 CSS 颜色换算成 RGBA（0~255）。用 canvas 统一换算，oklch 等新写法也能识别 */
-function toRgba(color: string): Rgba {
-  colorProbe ??= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-  if (colorProbe === null) return [0, 0, 0, 0];
-  colorProbe.clearRect(0, 0, 1, 1);
-  colorProbe.fillStyle = "rgba(0, 0, 0, 0)";
-  colorProbe.fillStyle = color;
-  colorProbe.fillRect(0, 0, 1, 1);
-  const [r = 0, g = 0, b = 0, a = 0] = colorProbe.getImageData(0, 0, 1, 1).data;
-  return [r, g, b, a];
-}
-
-function luminance(c: Rgba): number {
-  return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
-}
-
-/**
- * 段落所在区域是不是深色：往上找第一个不透明的背景色。
- * 一直找不到时是浏览器默认底色：页面声明了深色配色方案（color-scheme）才是深色，否则是白底。
- */
-function isDarkArea(el: Element): boolean {
-  for (let e: Element | null = el; e !== null; e = e.parentElement) {
-    const bg = toRgba(getComputedStyle(e).backgroundColor);
-    if (bg[3] >= 128) return luminance(bg) < 0.5;
-  }
-  const scheme = getComputedStyle(document.documentElement).colorScheme;
-  if (!scheme.includes("dark")) return false;
-  return !scheme.includes("light") || matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
-export function translationColor(el: Element): string {
-  return isDarkArea(el) ? COLOR_ON_DARK_PAGE : COLOR_ON_LIGHT_PAGE;
-}
+// 译文颜色：和原文区分开，又不用蓝色（网页链接多是蓝色，容易被当成链接）。主人 2026-10-19 定为 #00bb7c，深浅背景同色
+const TRANSLATION_COLOR = "#00bb7c";
 
 // 译文位置：短文本先试着放在同一行右边，实际排版放不下（原文本身折行，或译文折到下一行）就改到原文下方
 
@@ -142,7 +103,7 @@ function ensureNode(view: BlockView, target: string): HTMLElement {
     const node = document.createElement(TAG);
     node.setAttribute("lang", htmlLang(target));
     node.dataset.layout = view.inline && ownTextLines(view.el, null).count === 1 ? "inline" : "block";
-    node.style.setProperty("color", translationColor(view.el), "important");
+    node.style.setProperty("color", TRANSLATION_COLOR, "important");
     // 紧跟段落自己的文字：嵌套的子列表留在后面，开头的锚点图标等留在前面
     view.el.insertBefore(node, insertionPoint(view.el));
     view.node = node;

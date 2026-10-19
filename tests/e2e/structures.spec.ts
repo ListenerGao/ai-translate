@@ -81,17 +81,17 @@ test("14 标题开头有锚点图标时译文仍在原文后面；译文和原�
   expect(await page.locator("#brand ait-translation").count()).toBe(0);
 });
 
-test("11 译文用不同颜色和原文区分：按背景深浅，浅色区域深青色，深色区域浅青色", async ({ context, background, mock, site }) => {
+test("11 译文用 #00bb7c 和原文区分：浅色区域、浅灰文字、深色区域都是这个颜色", async ({ context, background, mock, site }) => {
   const page = await context.newPage();
   await page.goto(`${site}/structures.html`);
   await toggle(background, page);
   await settle(mock, page);
 
   const colorOf = (selector: string) => page.$eval(selector, (el) => getComputedStyle(el).color);
-  expect(await colorOf("#intro > ait-translation")).toBe("rgb(15, 118, 110)");
-  expect(await colorOf("#intro")).not.toBe("rgb(15, 118, 110)");
-  // 浅色页面上的浅灰色文字：按背景判断，仍用深青色
-  expect(await colorOf("#muted > ait-translation")).toBe("rgb(15, 118, 110)");
-  expect(await colorOf("#dark-p > ait-translation")).toBe("rgb(94, 234, 212)");
-  expect(await colorOf("#oklch-p > ait-translation")).toBe("rgb(94, 234, 212)");
+  const green = "rgb(0, 187, 124)";
+  expect(await colorOf("#intro > ait-translation")).toBe(green);
+  expect(await colorOf("#intro")).not.toBe(green);
+  expect(await colorOf("#muted > ait-translation")).toBe(green);
+  expect(await colorOf("#dark-p > ait-translation")).toBe(green);
+  expect(await colorOf("#oklch-p > ait-translation")).toBe(green);
 });

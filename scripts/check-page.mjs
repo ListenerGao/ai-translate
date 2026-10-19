@@ -33,7 +33,8 @@ const context = await chromium.launchPersistentContext("", {
 try {
   let [worker] = context.serviceWorkers();
   worker ??= await context.waitForEvent("serviceworker");
-  await worker.evaluate((key) => chrome.storage.local.set({ endpoint: "http://127.0.0.1:8791", apiKey: key }), apiKey);
+  // 关掉自动开启：由脚本自己开启翻译并计时（文章页会自动开启，再切换一次反而关掉了）
+  await worker.evaluate((key) => chrome.storage.local.set({ endpoint: "http://127.0.0.1:8791", apiKey: key, autoTranslate: false }), apiKey);
 
   const page = await context.newPage();
   await page.goto(url, { waitUntil: "load", timeout: 60_000 });
