@@ -10,16 +10,18 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "typecheck": "tsc -p packages/core && tsc -p apps/extension",
+    "typecheck": "tsc -p packages/core && tsc -p apps/extension && tsc -p apps/server",
     "test": "node --test \"packages/*/src/**/*.test.ts\" \"apps/*/src/**/*.test.ts\"",
     "build": "node apps/extension/build.mjs",
     "e2e:install": "PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium",
     "e2e": "npm run build && PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
-    "check-page": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/check-page.mjs"
+    "check-page": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/check-page.mjs",
+    "aitd": "node --disable-warning=ExperimentalWarning apps/server/src/main.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/chrome": "^0.3.5",
+    "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
