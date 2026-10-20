@@ -46,7 +46,7 @@
 - `npm test`：单测
 - `npm run build`：打包插件
 - `npm run e2e`：用 Playwright 自带的 Chromium 加载插件跑端到端测试（首次先 `npm run e2e:install`）
-- `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字。脚本自己起一个临时 aitd（不碰你的缓存），需要 `scripts/start-model.sh` 开着模型服务（`AIT_MODEL_URL` 可改地址）
+- `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字。脚本自己起一个临时 aitd（不碰你的缓存），要单独开一个模型服务：aitd 在跑时它管的模型用一次性密钥，连不上，另开 `AIT_PORT=8792 scripts/start-model.sh`，再 `AIT_MODEL_URL=http://127.0.0.1:8792 npm run check-page -- <网址>`
 - `npm run qa`：译文回归检查。用正在运行的模型服务把 `tests/quality/samples.json` 的 71 条样例全部翻一遍，自动查残留英文、数字丢失、格式标记、内置术语等硬伤，再和基线 `tests/quality/baseline.json` 比，报告写到 `.tmp/qa/`；出现基线没有的新问题时退出码为 1。换模型、换量化版本、改提示词或术语后跑一次，人看过报告后用 `npm run qa -- --update-baseline` 更新基线；`--endpoint` 指定别的模型服务地址。它直连模型服务、用 `api-key` 文件里的密钥；aitd 在跑时它管的模型用一次性密钥，连不上，要另开一个：`AIT_PORT=8792 scripts/start-model.sh`，再 `npm run qa -- --endpoint http://127.0.0.1:8792`
 - `npm run ait -- <参数>`：直接跑命令行源码（不用打包），参数和装好的 `ait` 一样，如 `npm run ait -- translate 文章.md`、`pbpaste | npm run -s ait`
 - `npm run aitd`：前台启动本机翻译服务 aitd。用到时自动启动模型、空闲 30 分钟停掉（`AIT_PRELOAD_SECONDS=N` 启动 N 秒后就加载模型，`AIT_IDLE_MINUTES=0` 不空闲停止）；模型默认用 8791 端口，和 `scripts/start-model.sh` 冲突，二选一。设 `AIT_MODEL_URL=http://127.0.0.1:8791` 则改连已经开着的模型服务（调试用）

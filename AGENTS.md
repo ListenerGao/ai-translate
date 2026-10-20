@@ -1,6 +1,6 @@
 # ai-translate 项目约定
 
-本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段做本机服务 `aitd` 和命令行 `ait`，插件改连 `aitd`；桌面应用到第三阶段再建。
+本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段的本机服务 `aitd` 已完成（插件只连 `aitd`），命令行 `ait` 开发中；桌面应用到第三阶段再建。
 
 ## 红线
 
@@ -14,7 +14,7 @@
 ## 已定决策
 
 - 模型：Index-Translate-2B（GGUF，`llama-server` 运行）。模型配置预留 9B 等其他模型，切换只改配置。
-- 架构以 `docs/architecture-v1.html` 为准：第一阶段插件直连 `llama-server`，暂不写 `aitd`；翻译核心 `packages/core` 用 TypeScript。
+- 架构以 `docs/architecture-v1.html` 为准：插件和命令行只连 `aitd`，`aitd` 管 `llama-server`、调度、缓存和术语表；翻译核心 `packages/core` 用 TypeScript，`aitd`、`ait` 用 Node 22 运行（不用架构图里提的 Bun，主人 2026-10-19 定）。
 - 开发环境：Node 22（`.nvmrc`）+ npm workspaces；开发依赖只有 `typescript`、`esbuild`、`@playwright/test`、`@types/chrome`、`@types/node`（aitd 类型检查用），单测用 Node 内置测试器。新增依赖先说明理由。
 - 一段一个请求，不把多段打包成 JSON；prompt 照抄官方 instTrans 格式，细节见 Goal 1 清单「接口决策」。
 - `packages/core` 不得引用 `chrome.*`、DOM 和 Node 内置模块，保证第二阶段的 `aitd`、`ait` 能直接复用。
@@ -46,7 +46,8 @@ goals/              Goal 施工清单
 - `npm run e2e`：构建后用 Playwright 自带的 Chromium 加载插件跑 e2e；首次先 `npm run e2e:install`（浏览器装进 `node_modules`，不动全局）
 - `npm run qa`：译文回归检查（要模型服务在运行）；换模型、量化版本、提示词或内置术语后必须跑，出现新问题退出码为 1
 - `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790），用到时自动启动模型（`AIT_LLAMA_PORT` 默认 8791，和 `start-model.sh` 冲突）；`AIT_MODEL_URL` 改连已在运行的模型服务
-- 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
+- 主人装了开机自启：aitd 一直占着 8790，模型常驻 8791（一次性密钥，`api-key` 连不上）。前台调试 aitd 要换端口；改了 `apps/server` 或 `packages/core` 后运行 `launchctl kickstart -k gui/$(id -u)/com.listenergao.ai-translate.aitd` 才生效
+- 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；`qa`、`check-page` 要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再用 `--endpoint` / `AIT_MODEL_URL` 指过去；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
 
 ## 文档入口
 
