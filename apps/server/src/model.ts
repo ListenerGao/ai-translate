@@ -36,6 +36,8 @@ export interface ModelBackend {
   status(): Promise<ModelStatus>;
   /** aitd 退出时调用：停掉自己启动的模型进程 */
   close(): Promise<void>;
+  /** 马上把模型加载好（开机自启的延时加载、桌面应用重启翻译服务后）；连外部模型服务时没有这一步 */
+  preload?(): Promise<void>;
 }
 
 /** 连一个已经在运行的 llama-server */

@@ -2,6 +2,9 @@
 node_modules/
 dist/
 *.tsbuildinfo
+# 桌面应用：SwiftPM 构建目录和组装出来的 .app
+apps/desktop/.build/
+apps/desktop/build/
 
 # 测试产物
 test-results/

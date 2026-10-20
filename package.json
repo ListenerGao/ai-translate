@@ -18,7 +18,9 @@
     "check-page": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/check-page.mjs",
     "aitd": "node --disable-warning=ExperimentalWarning apps/server/src/main.ts",
     "qa": "node --disable-warning=ExperimentalWarning scripts/qa.ts",
-    "ait": "node --disable-warning=ExperimentalWarning apps/cli/src/main.ts"
+    "ait": "node --disable-warning=ExperimentalWarning apps/cli/src/main.ts",
+    "desktop:build": "scripts/install-desktop.sh build",
+    "desktop:test": "swift test --package-path apps/desktop"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

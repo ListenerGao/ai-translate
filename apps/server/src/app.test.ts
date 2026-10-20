@@ -261,3 +261,153 @@ describe("aitd", () => {
     mock = await startMockServer({ apiKey: MODEL_KEY });
   });
 });
+
+// Goal 6 CP1：桌面应用用的文档翻译接口。编号对应施工清单 CP1 的单测预期 1~6。
+describe("aitd /api/translate-document", () => {
+  const fixture = (name: string) => readFileSync(new URL(`../../../tests/fixtures/cli/${name}`, import.meta.url), "utf8");
+
+  interface DocLine {
+    type: "progress" | "done";
+    done?: number;
+    total?: number;
+    text?: string;
+    failed?: { line: number; error: string }[];
+  }
+
+  const docBody = (format: string, text: string, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({ format, text, target: "zh", model: "index-translate-2b", ...extra });
+
+  async function translateDoc(format: string, text: string, extra: Record<string, unknown> = {}) {
+    const res = await call("/api/translate-document", { method: "POST", headers: { ...AUTH, "content-type": "application/json" }, body: docBody(format, text, extra) });
+    const lines = res.status === 200 ? res.text.split("\n").filter((l) => l !== "").map((l) => JSON.parse(l) as DocLine) : [];
+    return { status: res.status, text: res.text, lines, last: lines.at(-1) };
+  }
+
+  test("1 Markdown、SRT 的译文和 ait translate 的 golden 逐字一致（单语、双语）；日志里搜不到原文和译文", async () => {
+    for (const [format, source, mono, bilingual] of [
+      ["markdown", "guide.md", "guide.zh.md", "guide.bilingual.md"],
+      ["srt", "talk.srt", "talk.zh.srt", "talk.bilingual.srt"],
+    ] as const) {
+      const one = await translateDoc(format, fixture(source));
+      assert.equal(one.status, 200);
+      assert.equal(one.last?.type, "done");
+      assert.equal(one.last?.text, fixture(mono), `${source} 单语`);
+      assert.deepEqual(one.last?.failed, []);
+      const two = await translateDoc(format, fixture(source), { bilingual: true });
+      assert.equal(two.last?.text, fixture(bilingual), `${source} 双语`);
+    }
+    const log = readFileSync(join(home, "logs", "aitd.log"), "utf8");
+    assert.ok(log.includes('"event":"translate-document"'));
+    assert.ok(!log.includes("【译】") && !log.includes("Install"), "日志里不该有原文和译文");
+  });
+
+  test("2 SRT 格式错误：400，带行号；不发给模型", async () => {
+    const res = await translateDoc("srt", "1\nHello there.\n");
+    assert.equal(res.status, 400);
+    const error = JSON.parse(res.text).error;
+    assert.equal(error.code, "format");
+    assert.equal(error.line, 2);
+    assert.match(error.message, /第 2 行格式不对：.*时间轴/);
+    assert.equal(mock.requests.length, 0);
+  });
+
+  test("3 进度：done 从 1 递增到段数；没有要翻的内容时直接返回原文，不发给模型", async () => {
+    const source = fixture("dialog.srt");
+    const res = await translateDoc("srt", source);
+    const progress = res.lines.filter((l) => l.type === "progress");
+    assert.equal(progress.length, 12);
+    assert.deepEqual(progress.map((l) => l.done), Array.from({ length: 12 }, (_, i) => i + 1));
+    assert.ok(progress.every((l) => l.total === 12));
+    assert.equal(res.lines.length, 13);
+
+    mock.reset();
+    const code = "```js\nconst a = 1;\n```\n";
+    const empty = await translateDoc("markdown", code);
+    assert.deepEqual(empty.lines, [{ type: "done", text: code, failed: [] }]);
+    assert.equal(mock.requests.length, 0);
+  });
+
+  test("4 有段落没翻成：failed 带行号和原因，这些段落保留原文", async () => {
+    mock.setResponder((req) => (req.source.startsWith("Broken") ? { status: 500 } : undefined));
+    const res = await translateDoc("markdown", "# Fine title\n\nBroken paragraph here.\n");
+    assert.equal(res.last?.text, "# 【译】Fine title\n\nBroken paragraph here.\n");
+    assert.equal(res.last?.failed?.length, 1);
+    assert.equal(res.last?.failed?.[0]?.line, 3);
+    assert.match(res.last?.failed?.[0]?.error ?? "", /模型服务出错/);
+  });
+
+  test("5 客户端断开：撤销还没开始的段落，不再返回整份译文", async () => {
+    mock.setDelay(200);
+    const text = Array.from({ length: 8 }, (_, i) => `Paragraph number ${i} in a long document.`).join("\n\n");
+    const { req, done } = send("/api/translate-document", { method: "POST", headers: { ...AUTH, "content-type": "application/json" }, body: docBody("markdown", text) });
+    done.catch(() => {});
+    await waitFor(() => mock.inflight() === 3);
+    req.destroy();
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(mock.requests.length, 3);
+    await waitFor(() => readFileSync(join(home, "logs", "aitd.log"), "utf8").includes('"cancelled":true'));
+  });
+
+  test("6 默认走 batch 通道（最多占 3 路）；lane 设成 interactive 能用满 4 路", async () => {
+    mock.setDelay(150);
+    const text = (tag: string) => Array.from({ length: 6 }, (_, i) => `${tag} paragraph number ${i}.`).join("\n\n");
+    await translateDoc("markdown", text("Batch"));
+    assert.equal(mock.maxConcurrent(), 3);
+    mock.reset();
+    mock.setDelay(150);
+    await translateDoc("markdown", text("Interactive"), { lane: "interactive" });
+    assert.equal(mock.maxConcurrent(), 4);
+  });
+
+  test("鉴权、来源和请求体校验", async () => {
+    const body = docBody("markdown", "Hello there.");
+    assert.equal((await call("/api/translate-document", { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);
+    assert.equal((await call("/api/translate-document", { method: "POST", headers: { ...AUTH, origin: "https://evil.example" }, body })).status, 403);
+    assert.equal((await call("/api/translate-document", { headers: AUTH })).status, 405);
+    assert.equal((await translateDoc("html", "<p>Hi</p>")).status, 400);
+    assert.equal((await call("/api/translate-document", { method: "POST", headers: AUTH, body: JSON.stringify({ format: "markdown", text: 1, target: "zh", model: "index-translate-2b" }) })).status, 400);
+    assert.equal((await translateDoc("markdown", "Hi there.", { bilingual: "yes" })).status, 400);
+    assert.equal((await translateDoc("markdown", "Hi there.", { model: "other-model" })).status, 400);
+    assert.equal((await translateDoc("markdown", "Hi there.", { lane: "urgent" })).status, 400);
+    assert.equal((await translateDoc("markdown", "x".repeat(1024 * 1024))).status, 413);
+    assert.equal(mock.requests.length, 0);
+  });
+});
+
+// Goal 6 CP5：桌面应用「重启翻译服务」后马上加载模型
+describe("aitd /api/model/load", () => {
+  test("马上开始加载模型，不等加载完就返回 202 和当前状态；不带密钥 401；只支持 POST", async () => {
+    let calls = 0;
+    let state: "stopped" | "starting" = "stopped";
+    const external = new ExternalModel({ endpoint: mock.url, apiKey: MODEL_KEY });
+    const managed = {
+      profile: external.profile,
+      translator: (signal: AbortSignal) => external.translator(signal),
+      status: async () => ({ state, model: "index-translate-2b", quant: "Q8_0" }),
+      close: async () => {},
+      preload: async () => {
+        calls++;
+        state = "starting";
+        await new Promise((r) => setTimeout(r, 200));
+      },
+    };
+    await aitd.close();
+    aitd = await startAitd({ port: 0, apiKey: KEY, home, model: managed, version: "test" });
+    const started = performance.now();
+    const res = await call("/api/model/load", { method: "POST", headers: AUTH });
+    assert.equal(res.status, 202);
+    assert.ok(performance.now() - started < 150, "不等加载完");
+    assert.equal(JSON.parse(res.text).model.state, "starting");
+    assert.equal(calls, 1);
+    assert.equal((await call("/api/model/load", { method: "POST" })).status, 401);
+    assert.equal((await call("/api/model/load", { headers: AUTH })).status, 405);
+    assert.equal(calls, 1);
+    assert.ok(readFileSync(join(home, "logs", "aitd.log"), "utf8").includes('"event":"model-load-requested"'));
+  });
+
+  test("连外部模型服务时没有加载这一步：照样返回 202 和状态", async () => {
+    const res = await call("/api/model/load", { method: "POST", headers: AUTH });
+    assert.equal(res.status, 202);
+    assert.equal(JSON.parse(res.text).model.state, "ready");
+  });
+});

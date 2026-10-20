@@ -33,6 +33,16 @@ export {
 } from "./inline.ts";
 export { parseMarkdown, type MarkdownDoc, type MarkdownUnit } from "./formats/markdown.ts";
 export { SrtFormatError, parseSrt, type SrtDoc, type SrtUnit } from "./formats/srt.ts";
+export {
+  documentSegments,
+  parseDocument,
+  renderDocument,
+  type DocumentFormat,
+  type DocumentUnit,
+  type FailedUnit,
+  type ParsedDocument,
+  type UnitOutcome,
+} from "./formats/document.ts";
 export { TranslateError, isAbortError, type TranslateErrorCode } from "./errors.ts";
 export { MemoryCache, type CacheStore } from "./cache.ts";
 export { Scheduler, type Lane, type SchedulerOptions, type Task } from "./scheduler.ts";

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ai-translate 架构 V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+/* Layout: one reading column (~720px) inside a 960px page; diagrams use the full width and scroll sideways on phones */
+:root {
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --panel: #EDF0F5;
+  --fg: #18202C;
+  --muted: #5A6375;
+  --line: #C5CCD8;
+  --accent: #2753C8;
+  --accent-soft: #E5ECFB;
+  --warn: #8F5400;
+  --warn-soft: #FBEFD9;
+  --font-display: "Noto Serif SC", "Songti SC", serif;
+  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F131A; --surface: #171C25; --panel: #131821; --fg: #E3E7EE; --muted: #9AA3B5;
+    --line: #353D4C; --accent: #86A5FF; --accent-soft: #1C2742; --warn: #F0B35A; --warn-soft: #2B2315;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F131A; --surface: #171C25; --panel: #131821; --fg: #E3E7EE; --muted: #9AA3B5;
+  --line: #353D4C; --accent: #86A5FF; --accent-soft: #1C2742; --warn: #F0B35A; --warn-soft: #2B2315;
+  color-scheme: dark;
+}
+
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.75; }
+.page {
+  max-width: 960px; margin: 0 auto; display: grid; gap: 56px;
+  padding-block: 44px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+section, header { display: grid; gap: 14px; min-width: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--muted); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4.2vw, 34px); line-height: 1.3; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.4; margin: 0; text-wrap: balance; }
+h3 { font-size: 15px; font-weight: 700; margin: 0; }
+p { margin: 0; }
+.lead { font-size: 16px; max-width: 720px; }
+.note { max-width: 720px; font-size: 14.5px; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--panel); border: 1px solid var(--line); padding: 0 5px; border-radius: 4px; word-break: break-word; }
+pre { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.65; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; overflow-x: auto; max-width: 760px; }
+pre .c { color: var(--muted); }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+figcaption { color: var(--muted); font-size: 13.5px; max-width: 720px; }
+
+/* SVG marks, themed through the same tokens */
+svg text { font-family: var(--font-body); }
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.box-dash { fill: var(--bg); stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.container { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
+.t { fill: var(--fg); font-size: 13px; font-weight: 700; }
+.t-muted { fill: var(--muted); font-size: 13px; font-weight: 700; }
+.s { fill: var(--muted); font-size: 11px; }
+.m { font-family: var(--font-mono); }
+.lbl { fill: var(--muted); font-size: 11px; }
+.lbl-main { fill: var(--accent); font-size: 11px; font-weight: 500; }
+.eb { fill: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: .06em; }
+.e { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.e-main { stroke: var(--accent); stroke-width: 2; fill: none; }
+.e-alt { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; }
+.ah { fill: var(--muted); }
+.ah-main { fill: var(--accent); }
+/* paragraph states in the scroll figure */
+.p-done { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+.p-run { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.p-wait { fill: var(--surface); stroke: var(--muted); stroke-width: 1; }
+.p-cancel { fill: var(--surface); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.p-none { fill: var(--bg); stroke: var(--line); stroke-width: 1; }
+.vp { fill: none; stroke: var(--accent); stroke-width: 2; }
+.zone { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; }
+.pt { fill: var(--fg); font-size: 11.5px; }
+.pt-muted { fill: var(--muted); font-size: 11.5px; }
+.zl { fill: var(--fg); font-size: 12.5px; font-weight: 700; }
+.zl-main { fill: var(--accent); font-size: 12.5px; font-weight: 700; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 36px; }
+.grid2 > div { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.grid2 p { font-size: 14.5px; }
+
+.open { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-width: 760px; }
+.open li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
+.chip { font-size: 11.5px; font-weight: 500; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+.open h3, .open p { grid-column: 2; }
+.open p { font-size: 14.5px; }
+
+.phases { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; max-width: 760px; counter-reset: phase; }
+.phases li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 2px 12px; counter-increment: phase; }
+.phases li::before { content: counter(phase); grid-row: span 2; font-family: var(--font-mono); font-size: 14px; font-weight: 500; color: var(--accent); width: 28px; height: 28px; border: 1.5px solid var(--accent); border-radius: 50%; display: grid; place-items: center; line-height: 1; margin-top: 2px; }
+.phases p { font-size: 14.5px; }
+
+footer { border-top: 1px solid var(--line); padding-top: 16px; color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+footer ul { margin: 0; padding-left: 18px; }
+
+@media (max-width: 640px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .page { gap: 44px; }
+}
+
+/* V2：第三阶段要做的部分用强调色虚线 */
+.box-new { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.t-main { fill: var(--accent); font-size: 13px; font-weight: 700; }
+.e-new { stroke: var(--accent); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+table { border-collapse: collapse; width: 100%; max-width: 860px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; font-size: 13px; }
+td:first-child { white-space: nowrap; font-weight: 500; }
+.tbl { overflow-x: auto; }
+.status { font-size: 11.5px; font-weight: 500; border-radius: 999px; padding: 1px 9px; white-space: nowrap; margin-left: 6px; }
+.done { color: var(--muted); background: var(--panel); border: 1px solid var(--line); }
+.doing { color: var(--accent); background: var(--accent-soft); }
+.safe { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 760px; font-size: 14.5px; }
+
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="eyebrow">ai-translate · 架构 V2 · 2026-10-20</p>
+    <h1>一个本机服务，三个入口</h1>
+    <p class="lead">第二阶段之后，浏览器插件和命令行 <code>ait</code> 都只连本机翻译服务 <code>aitd</code>：模型、缓存和术语表只有一份。第三阶段加一个 Swift 原生的桌面应用，它也只是 <code>aitd</code> 的又一个客户端。翻译内容始终不出本机。V1（<code>docs/architecture-v1.html</code>）保留不改，本页记录第二阶段的实际结构和第三阶段的做法。</p>
+  </header>
+
+  <section>
+    <h2>整体结构</h2>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 990 520" role="img" aria-label="架构图：Chrome 插件、命令行 ait 和第三阶段的桌面应用都通过 HTTP 连本机的 aitd。aitd 里依次是鉴权与来源检查、调度队列、SQLite 缓存和术语表、文档拆分与重组、模型进程管理、模型列表与切换。aitd 由 launchd 在登录后启动，它启动并管理 llama-server，llama-server 加载本机的模型文件。桌面应用从 Hugging Face 下载模型文件，这是唯一的外网请求。">
+          <defs>
+            <marker id="v2a" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="v2m" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path class="ah-main" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- 三个入口 -->
+          <text class="eb" x="20" y="28">入口</text>
+          <rect class="box" x="20" y="40" width="220" height="86" rx="10"/>
+          <text class="t" x="36" y="66">Chrome 插件</text>
+          <text class="s" x="36" y="88">滑动翻译 · 划词 · 朗读</text>
+          <text class="s m" x="36" y="108">lane: interactive</text>
+
+          <rect class="box" x="20" y="176" width="220" height="86" rx="10"/>
+          <text class="t" x="36" y="202">命令行 ait</text>
+          <text class="s" x="36" y="224">文字 · Markdown · SRT 字幕</text>
+          <text class="s m" x="36" y="244">lane: batch</text>
+
+          <rect class="box-new" x="20" y="312" width="220" height="104" rx="10"/>
+          <text class="t-main" x="36" y="338">桌面应用 · Swift（第三阶段）</text>
+          <text class="s" x="36" y="360">翻译窗口 · 文件翻译 · 划词</text>
+          <text class="s" x="36" y="378">菜单栏 · 快捷键 · 模型管理</text>
+          <text class="s m" x="36" y="400">interactive / batch</text>
+
+          <line class="e" x1="240" y1="83" x2="298" y2="83" marker-end="url(#v2a)"/>
+          <text class="lbl" x="269" y="76" text-anchor="middle">HTTP</text>
+          <line class="e" x1="240" y1="219" x2="298" y2="219" marker-end="url(#v2a)"/>
+          <text class="lbl" x="269" y="212" text-anchor="middle">HTTP</text>
+          <line class="e-new" x1="240" y1="364" x2="298" y2="364" marker-end="url(#v2m)"/>
+          <text class="lbl-main" x="269" y="357" text-anchor="middle">HTTP</text>
+
+          <!-- aitd -->
+          <rect class="container" x="300" y="28" width="400" height="420" rx="12"/>
+          <text class="eb" x="320" y="50">aitd · Node 22 · 127.0.0.1:8790</text>
+
+          <rect class="box" x="320" y="62" width="360" height="52" rx="8"/>
+          <text class="t" x="336" y="83">鉴权与来源检查</text>
+          <text class="s" x="336" y="102">Bearer 密钥 · 只认本机 Host · 拒绝网页来源</text>
+
+          <rect class="box" x="320" y="124" width="360" height="52" rx="8"/>
+          <text class="t" x="336" y="145">调度队列</text>
+          <text class="s" x="336" y="164">并发 4 · interactive 优先 · batch 最多 3 路 · 可撤销</text>
+
+          <rect class="box" x="320" y="186" width="360" height="52" rx="8"/>
+          <text class="t" x="336" y="207">SQLite 缓存 · 术语表</text>
+          <text class="s" x="336" y="226">cache.db 最多 10 万条 · glossary.txt · 三个入口共用</text>
+
+          <rect class="box-new" x="320" y="248" width="360" height="52" rx="8"/>
+          <text class="t-main" x="336" y="269">文档拆分与重组（Goal 6 新增接口）</text>
+          <text class="s" x="336" y="288">Markdown · SRT，复用 packages/core</text>
+
+          <rect class="box" x="320" y="310" width="360" height="52" rx="8"/>
+          <text class="t" x="336" y="331">模型进程管理</text>
+          <text class="s" x="336" y="350">开机自启后 60 秒加载 · 常驻 · 崩溃拉起 · 一次性密钥</text>
+
+          <rect class="box-new" x="320" y="372" width="360" height="52" rx="8"/>
+          <text class="t-main" x="336" y="393">模型列表与切换（Goal 8）</text>
+          <text class="s" x="336" y="412">settings.json · aitd 不访问外网</text>
+
+          <!-- 右边：launchd、llama-server、模型文件、Hugging Face -->
+          <rect class="box" x="760" y="40" width="210" height="64" rx="10"/>
+          <text class="t" x="776" y="61">launchd</text>
+          <text class="s" x="776" y="79">LaunchAgent · 登录后启动</text>
+          <text class="s" x="776" y="95">异常退出自动拉起</text>
+          <line class="e" x1="760" y1="72" x2="702" y2="72" marker-end="url(#v2a)"/>
+          <text class="lbl" x="731" y="64" text-anchor="middle">启动</text>
+
+          <rect class="box" x="760" y="126" width="210" height="84" rx="10"/>
+          <text class="t" x="776" y="150">llama-server :8791</text>
+          <text class="s m" x="776" y="172">-np 4 · --cache-ram 0</text>
+          <text class="s" x="776" y="192">一次性密钥，只有 aitd 能连</text>
+          <line class="e-main" x1="680" y1="150" x2="758" y2="150" marker-end="url(#v2m)"/>
+          <text class="lbl-main" x="719" y="143" text-anchor="middle">翻译</text>
+          <path class="e" d="M680,336 H745 V186 H758" marker-end="url(#v2a)"/>
+          <text class="lbl" x="712" y="328" text-anchor="middle">启停</text>
+
+          <rect class="box" x="760" y="250" width="210" height="70" rx="10"/>
+          <text class="t" x="776" y="272">模型文件 models/</text>
+          <text class="s" x="776" y="291">Index-Translate-2B · GGUF</text>
+          <text class="s" x="776" y="309">Q8_0（默认）· Q4_K_M</text>
+          <line class="e" x1="865" y1="210" x2="865" y2="248" marker-end="url(#v2a)"/>
+          <text class="lbl" x="873" y="234">加载</text>
+
+          <rect class="box-dash" x="760" y="420" width="210" height="60" rx="10"/>
+          <text class="t-muted" x="776" y="444">Hugging Face</text>
+          <text class="s" x="776" y="464">外网，只用来下载模型</text>
+          <path class="e-new" d="M130,416 V500 H865 V482" marker-end="url(#v2m)"/>
+          <text class="lbl-main" x="500" y="494" text-anchor="middle">桌面应用下载模型（Goal 8；现在用 scripts/download-model.sh）</text>
+          <line class="e-new" x1="865" y1="420" x2="865" y2="322" marker-end="url(#v2m)"/>
+          <text class="lbl-main" x="873" y="374">校验后写入</text>
+        </svg>
+      </div>
+      <figcaption>实线是第一、二阶段已经做完的部分；蓝色虚线是第三阶段要加的（Goal 6~8）；灰色虚线框是外网，只用来下载模型。三个入口都只连 <code>127.0.0.1:8790</code>，<code>llama-server</code> 只有 aitd 能连。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>和 V1 相比的变化</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>方面</th><th>V1 的设想</th><th>现在（V2）</th></tr></thead>
+        <tbody>
+          <tr><td>插件连谁</td><td>第一阶段直连 <code>llama-server</code>，以后改连 aitd</td><td>已改连 aitd；插件里的缓存和术语表移到 aitd（SQLite 和 <code>glossary.txt</code>）</td></tr>
+          <tr><td>服务运行时</td><td>aitd、ait 建议用 TypeScript + Bun</td><td>Node 22（自带 HTTP 和 SQLite，不引入 Bun）</td></tr>
+          <tr><td>调度</td><td>插件后台一个队列，近的先翻、可撤销</td><td>aitd 一个全局队列，分 <code>interactive</code>（插件、桌面应用的文字和划词）和 <code>batch</code>（命令行、文件翻译）两个通道；插件优先，batch 最多占 4 路里的 3 路</td></tr>
+          <tr><td>模型进程</td><td>脚本手动或开机启动</td><td>aitd 自己管：每次启动生成一次性密钥，崩溃自动拉起。开机自启（日常使用）：登录后 60 秒加载并常驻；桌面应用「重启翻译服务」后经 <code>/api/model/load</code> 马上加载；只有在终端里手动运行 <code>npm run aitd</code> 调试时，才是用到时启动、空闲 30 分钟停</td></tr>
+          <tr><td>桌面应用</td><td>Tauri</td><td>Swift 原生（SwiftUI + AppKit）：本机已有 Xcode，不用装 Rust；菜单栏、全局快捷键、读取其他 App 选中的文字都是系统能力（2026-10-20 主人定）。Goal 6 已完成：菜单栏和 Dock、翻译窗口、文件翻译、设置</td></tr>
+          <tr><td>Markdown、字幕</td><td>命令行支持</td><td>拆分和重组都在 <code>packages/core</code>；命令行在本地调用，桌面应用经 aitd 新接口 <code>/api/translate-document</code> 调用，结果逐字一致</td></tr>
+          <tr><td>模型下载和切换</td><td>桌面应用里做</td><td>下载由桌面应用做（系统代理自动生效），aitd 不访问外网；切换由 aitd 做，选择存到 <code>settings.json</code></td></tr>
+          <tr><td>9B</td><td>和 2B 在设置里切换</td><td>模型配置仍留着口子；以后单独评估速度和常驻内存</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>桌面应用（第三阶段）</h2>
+    <p class="note">菜单栏和 Dock 都有图标，最低 macOS 14。用 Swift Package 构建，脚本组装成 <code>~/Applications/AI Translate.app</code>，用本机自签名证书签名（身份固定，辅助功能授权一次长期有效）。不用第三方 Swift 包。</p>
+    <div class="grid2">
+      <div><h3>菜单栏、Dock 和设置（Goal 6）</h3><p>菜单栏显示 aitd 和模型状态（说法和插件弹窗一致），能打开翻译窗口、翻译剪贴板、翻译文件、设置；设置里改默认语言、术语表（和插件、命令行同一份）、登录时打开。「重启翻译服务」后经 <code>/api/model/load</code> 马上加载模型。</p></div>
+      <div><h3>翻译窗口（Goal 6）</h3><p>左边输入、右边出译文，停止输入 0.5 秒后翻；按空行分段，每段一个 <code>interactive</code> 请求，再次输入时撤销上一次。</p></div>
+      <div><h3>文件翻译（Goal 6）</h3><p>拖入 Markdown、SRT，经 <code>/api/translate-document</code> 走 <code>batch</code> 通道，显示进度，写到原文件旁边，规则和 <code>ait translate</code> 相同。</p></div>
+      <div><h3>划词（Goal 7）</h3><p>任何 App 里选中文字按 <code>⌥D</code>：先用辅助功能接口读选中文字，读不到再模拟 <code>⌘C</code> 并恢复剪贴板。另有翻译剪贴板和右键「服务」菜单，不需要授权。</p></div>
+      <div><h3>模型管理（Goal 8）</h3><p>App 从 Hugging Face 下载量化版本（断点续传、sha256 校验），aitd 负责列出、切换和删除。</p></div>
+      <div><h3>连 aitd</h3><p>只连本机地址；密钥从 <code>api-key</code> 文件读，不另存；请求不带 <code>Origin</code>，和命令行一样。</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>安全边界</h2>
+    <ul class="safe">
+      <li>翻译内容只在本机：插件、命令行、桌面应用只连 <code>127.0.0.1</code>；外网请求只有下载模型（脚本或桌面应用）和安装依赖。</li>
+      <li>aitd 只监听 <code>127.0.0.1</code>；除 <code>/health</code> 外都要密钥；拒绝非本机 <code>Host</code> 和网页来源；不返回 CORS 头；日志只记事件、计数、耗时和错误码。</li>
+      <li><code>llama-server</code> 用 aitd 每次启动时生成的一次性密钥，插件、命令行和桌面应用都连不上它。</li>
+      <li>桌面应用不写日志、不存翻译历史；模拟 <code>⌘C</code> 取词后恢复剪贴板；辅助功能授权只用来读选中的文字。</li>
+      <li>密钥只在 <code>~/Library/Application Support/ai-translate/api-key</code>（权限 600）和插件的 <code>chrome.storage.local</code>；签名证书放在单独的钥匙串文件里，只给这个 App 签名。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分阶段</h2>
+    <ol class="phases">
+      <li>
+        <h3>浏览器插件 <span class="status done">2026-10-19 完成</span></h3>
+        <p>边滑动边翻译、双语对照、段内格式保留、划词翻译与朗读、英文文章自动开启。</p>
+      </li>
+      <li>
+        <h3>aitd 服务和 ait 命令行 <span class="status done">2026-10-20 完成</span></h3>
+        <p>插件改连 aitd，缓存和术语表移到服务端；开机自启、模型常驻；命令行支持文字、Markdown、SRT。</p>
+      </li>
+      <li>
+        <h3>桌面应用 <span class="status doing">进行中</span></h3>
+        <p>Goal 6 骨架与翻译窗口 → Goal 7 全局快捷键与划词 → Goal 8 模型下载与切换（含第三阶段总验收）。</p>
+      </li>
+      <li>
+        <h3>扩展</h3>
+        <p>图片翻译、视频字幕、9B 评估等，见 <code>ROADMAP.md</code> 待办。</p>
+      </li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>相关文件</p>
+    <ul>
+      <li><code>docs/architecture-v1.html</code>：V1 定稿，只读</li>
+      <li><code>goals/20261019-1230-4-aitd-service.md</code>、<code>goals/20261019-1230-5-ait-cli.md</code>：第二阶段施工清单和实测数据</li>
+      <li><code>goals/20261020-1542-6-desktop-app.md</code>、<code>-7-global-hotkey.md</code>、<code>-8-model-manager.md</code>：第三阶段施工清单</li>
+      <li><code>ROADMAP.md</code>：决策记录和当前进度</li>
+    </ul>
+  </footer>
+</main>
+</body>
+</html>

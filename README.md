@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-第一阶段的浏览器插件已完成（2026-10-19 验收通过）；第二阶段的本机翻译服务 `aitd` 和命令行 `ait` 已做完，进度见 `ROADMAP.md`。插件在 Chrome 开发者模式下加载使用；桌面应用在第三阶段。
+第一阶段的浏览器插件（2026-10-19 验收通过）和第二阶段的本机翻译服务 `aitd`、命令行 `ait`（2026-10-20 验收通过）都已完成。第三阶段的桌面应用 AI Translate 已经能用：菜单栏、翻译窗口、文件翻译、设置；全局快捷键划词和模型管理还在做，进度见 `ROADMAP.md`。插件在 Chrome 开发者模式下加载使用。
 
 ## 功能一览
 
@@ -13,29 +13,30 @@
 | 网页滑动翻译 | 浏览器插件 | 英文文章页自动开启，边滑边翻；译文插在原文旁边，可切换「双语对照 / 只看译文」 |
 | 划词翻译 | 浏览器插件 | 选中文字点图标，弹出翻译卡片：可复制、临时换目标语言、固定 |
 | 划词朗读 | 浏览器插件 | 用 macOS 本机语音朗读选中的原文 |
-| 文字翻译 | 命令行 `ait` | `ait "文字"`、`pbpaste \| ait` |
-| Markdown 翻译 | 命令行 `ait` | 保留文档结构和格式，写到 `文件.zh.md` |
-| SRT 字幕翻译 | 命令行 `ait` | 序号、时间轴不变，可输出双语字幕 |
-| 术语表 | 插件设置页、命令行 | 插件和命令行共用；另有 4 条内置术语 |
-| 翻译缓存 | 本机服务 `aitd` | 插件和命令行共用，翻过的段落再翻立即返回 |
+| 文字翻译 | 桌面应用、命令行 `ait` | 桌面应用左边贴原文、右边边输入边出译文；命令行 `ait "文字"`、`pbpaste \| ait` |
+| Markdown 翻译 | 桌面应用、命令行 `ait` | 拖进桌面应用窗口或 `ait translate`，保留文档结构和格式，写到 `文件.zh.md` |
+| SRT 字幕翻译 | 桌面应用、命令行 `ait` | 序号、时间轴不变，可输出双语字幕 |
+| 术语表 | 插件设置页、桌面应用设置、命令行 | 三处共用一份；另有 4 条内置术语 |
+| 翻译缓存 | 本机服务 `aitd` | 插件、桌面应用、命令行共用，翻过的段落再翻立即返回 |
 
-翻译和朗读都在本机完成：插件只连本机地址，朗读只用本机语音，不接任何在线翻译服务。
+翻译和朗读都在本机完成：插件、桌面应用、命令行只连本机地址，朗读只用本机语音，不接任何在线翻译服务。
 
 ## 工作方式
 
 ```
-Chrome 插件 ─┐
-             ├──> aitd（127.0.0.1:8790）──> llama-server（127.0.0.1:8791）
-命令行 ait ──┘     缓存、术语表、排队调度      Index-Translate-2B 模型
+Chrome 插件 ───┐
+桌面应用 ──────┼──> aitd（127.0.0.1:8790）──> llama-server（127.0.0.1:8791）
+命令行 ait ────┘     缓存、术语表、排队调度      Index-Translate-2B 模型
 ```
 
-- `aitd` 是本机翻译服务：管模型进程、排队调度、缓存和术语表。浏览器的请求优先；命令行批量翻译最多占模型 4 路里的 3 路，留 1 路给插件
-- `aitd` 只监听 `127.0.0.1`，除健康检查外都要带密钥，网页里的脚本调不了它；模型服务用 `aitd` 每次生成的一次性密钥，插件和命令行都连不上它
+- `aitd` 是本机翻译服务：管模型进程、排队调度、缓存和术语表。插件和桌面应用的文字翻译优先；命令行和桌面应用的文件翻译是批量任务，最多占模型 4 路里的 3 路，留 1 路给前面这些
+- `aitd` 只监听 `127.0.0.1`，除健康检查外都要带密钥，网页里的脚本调不了它；模型服务用 `aitd` 每次生成的一次性密钥，插件、桌面应用和命令行都连不上它
+- 架构说明见 `docs/architecture-v2.html`
 - 模型默认用 Index-Translate-2B 的 Q8_0 量化版本（约 2.1 GB），用 Apple Silicon 的 GPU 运行
 
 ## 安装
 
-需要 macOS（Apple Silicon）、Homebrew、Node 22（用 `nvm` 管理）和 Chrome 120 以上。
+需要 macOS（Apple Silicon）、Homebrew、Node 22（用 `nvm` 管理）和 Chrome 120 以上；桌面应用另外要 macOS 14 以上和 Xcode 16 以上（Swift 6）。
 
 1. 安装 llama.cpp：`brew install llama.cpp`
 2. 在仓库目录装依赖：`nvm use && npm install`
@@ -49,14 +50,15 @@ Chrome 插件 ─┐
 6. 加载插件：Chrome 打开 `chrome://extensions`，打开右上角「开发者模式」，点「加载已解压的扩展程序」，选 `apps/extension/dist/`
 7. 填密钥：运行 `pbcopy < ~/Library/Application\ Support/ai-translate/api-key` 复制密钥；在插件详情里打开「扩展程序选项」，粘贴到「密钥」，点「保存」，再点「测试连接」
 8. 安装命令行（可选）：`scripts/install-cli.sh install`，装到 `~/.local/bin/ait`（固定用 Node 22，不受终端默认 Node 版本影响）。新开终端运行 `ait status`，显示「aitd 0.1.0 正常」就装好了
+9. 安装桌面应用（可选）：`scripts/install-desktop.sh install`，编译后装到 `~/Applications/AI Translate.app` 并启动，Dock 和菜单栏出现蓝底白色「中→A」图标。第一次安装会生成一张只给这个 App 签名的本机证书，放在单独的钥匙串文件 `~/Library/Application Support/ai-translate/signing/` 里，登录钥匙串不动；身份固定，以后更新 App 不用重新授权。第一次打开时默认登记「登录时自动打开」，可在 App 设置里关
 
-卸载：`scripts/aitd-service.sh uninstall` 停掉开机自启；`scripts/install-cli.sh uninstall` 删掉 `ait`；在 `chrome://extensions` 移除插件。
+卸载：`scripts/aitd-service.sh uninstall` 停掉开机自启；`scripts/install-cli.sh uninstall` 删掉 `ait`；卸载桌面应用前先在它的设置里关掉「登录时自动打开」，再运行 `scripts/install-desktop.sh uninstall`；在 `chrome://extensions` 移除插件。
 
 ## 使用
 
 ### 网页翻译
 
-- **自动开启**：打开「英文且像文章」的页面会自动开始翻译；搜索结果、列表、目录、首页不会自动开。点工具栏的「译」图标，弹窗会显示当前页面的判断结果
+- **自动开启**：打开「英文且像文章」的页面会自动开始翻译；搜索结果、列表、目录、首页不会自动开。点工具栏的 AI Translate 图标（蓝底白色「中→A」），弹窗会显示当前页面的判断结果
 - **手动开关**：在弹窗里点「翻译」，或按 `⌥T`（Alt+T）；再按一次还原页面
 - **翻译顺序**：先翻屏幕内和下方约 1 屏的段落，往下滑接着翻；翻过的段落存在缓存里，再打开同一页面直接显示
 - **显示**：译文用绿色（`#00bb7c`）和原文区分。5 个单词起的段落，译文放在原文下方；1~4 个单词的短文本（标题、菜单、表格单元格）放得下时，译文跟在同一行右边，放不下也放到下方。按 `⌥⇧M` 或在弹窗里切换「双语对照 / 只看译文」，当前页面立即生效
@@ -73,7 +75,7 @@ Chrome 插件 ─┐
 
 ### 工具栏弹窗
 
-点工具栏的「译」图标：
+点工具栏的 AI Translate 图标：
 
 - **语言**：选原文语言（默认自动检测）和目标语言；改了之后，正在翻译的页面按新语言重翻
 - **模型状态**：
@@ -104,6 +106,16 @@ Chrome 插件 ─┐
 - **显示方式**：双语对照 / 只看译文
 - **术语表**：一行一条 `原文=译文`，`#` 开头的行是注释，写错的行不让保存。术语表存在 `aitd` 里，插件和命令行共用；只有段落里出现的术语才会发给模型。另有 4 条内置术语一直生效：`mockup=设计稿`、`single source of truth=单一事实来源`、`sequence transduction=序列转导`、`under the hood=底层`；自己写了同一个原文时以自己的为准
 - **开关**：「英文文章页自动开启翻译」「划词翻译」
+
+### 桌面应用
+
+- **打开**：点 Dock 或菜单栏的「中→A」图标，或者在启动台、聚焦搜索里找「AI Translate」；登录后自动打开（可在设置里关）。关掉窗口 App 不退出，`⌘Q` 才退出
+- **菜单栏**：第一行是翻译服务状态（运行中 / 启动中 / 已休眠 / aitd 没启动 / 密钥不对 / 出错，说法和插件弹窗一致），下面是「打开翻译窗口」「翻译剪贴板」「翻译文件…」「设置…」「重启翻译服务」「退出」。启动中时图标右边有个圆圈，有问题时有个实心点；右键 Dock 图标也有前四项
+- **翻译窗口**：顶部是原文语言和目标语言（原文选了具体语言后，中间的 ⇄ 能互换方向，译文翻好时会搬到左边翻回去），左边贴原文，停手 0.5 秒自动翻，`⌘↩` 立即翻；按空行分段，哪段先翻好先显示哪段，改了一段只重翻这一段。右上角复制全部译文，左上角显示字数、一键清空。关掉窗口时清空原文和译文（翻过的内容在缓存里，再翻立即出）
+- **文件翻译**：把 `.md`、`.markdown`、`.srt` 文件拖进翻译窗口，或者 `⌘O` 选文件，弹出文件卡片：可选「双语」，译文写到原文件旁边（规则和 `ait translate` 相同，结果逐字一致）；输出文件已存在时可以覆盖、另存为或取消；翻译中显示进度、可以取消；完成后能「在访达中显示」，没翻成的段落列出行号并保留原文。不支持的文件弹框提示；只认 UTF-8，单个文件最多 900 KB（更大的用 `ait`）
+- **设置**（`⌘,`）：默认翻译成（和翻译窗口的目标语言是同一个设置）、登录时自动打开；术语表（和插件设置页、命令行同一份，写错的行逐行标出，`⌘S` 保存，没保存就关窗口会提醒）；翻译服务的状态、模型、缓存条数，「重启翻译服务」后马上重新加载模型
+- **快捷键**：`⌘N` 打开翻译窗口，`⌘O` 翻译文件，`⌘,` 设置，`⌘↩` 立即翻译，`⌘W` 关窗口，`⌘Q` 退出
+- **更新**：改了 `apps/desktop` 的代码后重新运行 `scripts/install-desktop.sh install`（会先退出正在运行的 App 再替换）
 
 ### 命令行 ait
 
@@ -163,6 +175,7 @@ ait status                                           # 看 aitd、模型、队�
 | `glossary.txt` | 术语表，在设置页第一次保存后生成 |
 | `logs/` | `aitd.log`（每 5 MB 轮转）和开机自启的输出 `launchd.log`；只记事件、耗时和错误码，不记原文、译文和密钥 |
 | `run/` | 模型进程的一次性密钥和进程号 |
+| `signing/` | 桌面应用签名用的单独钥匙串和它的密码（目录权限 700），只给 AI Translate 签名 |
 
 环境变量（`npm run aitd` 前设，或者在 `scripts/aitd-service.sh install` 前设，写进开机自启配置）：
 
@@ -188,7 +201,8 @@ ait status                                           # 看 aitd、模型、队�
 - **模型状态显示「出错」**：鼠标停在状态上看原因。常见是模型文件没下载（运行 `scripts/download-model.sh`）或没装 llama.cpp（`brew install llama.cpp`）
 - **`ait: command not found`**：`~/.local/bin` 不在 `PATH` 里，在 `~/.zshrc` 加一行 `export PATH="$HOME/.local/bin:$PATH"` 后新开终端
 - **升级 Node 后 aitd 或 ait 用不了**：重新运行 `scripts/aitd-service.sh install` 和 `scripts/install-cli.sh install`
-- **改了代码不生效**：插件和命令行要 `npm run build`，插件还要在 `chrome://extensions` 点重新加载；开机自启的 `aitd` 要用上面的命令重启
+- **改了代码不生效**：插件和命令行要 `npm run build`，插件还要在 `chrome://extensions` 点重新加载；开机自启的 `aitd` 要用上面的命令重启（或在桌面应用里点「重启翻译服务」）；桌面应用要重新 `scripts/install-desktop.sh install`
+- **桌面应用菜单栏显示「aitd 没启动」**：同第一条，先确认 `aitd` 在运行
 
 ## 开发
 
@@ -202,6 +216,9 @@ ait status                                           # 看 aitd、模型、队�
 - `npm run ait -- <参数>`：直接跑命令行源码（不用打包），参数和装好的 `ait` 一样，如 `npm run ait -- translate 文章.md`、`pbpaste | npm run -s ait`
 - `npm run qa`：译文回归检查。把 `tests/quality/samples.json` 的 71 条样例全部翻一遍，自动查残留英文、数字丢失、格式标记、内置术语等硬伤，再和基线 `tests/quality/baseline.json` 比，报告写到 `.tmp/qa/`；出现基线没有的新问题时退出码为 1。换模型、换量化版本、改提示词或术语后跑一次，人看过报告后用 `npm run qa -- --update-baseline` 更新基线
 - `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字。脚本自己起一个临时 `aitd`，不碰你的缓存
+- `npm run desktop:test`：桌面应用的单测（Swift Testing，`apps/desktop` 里不依赖界面的 `AITranslateKit`）
+- `npm run desktop:build`：编译桌面应用、组装并签名到 `apps/desktop/build/AI Translate.app`（不安装）。核对界面时可以带调试参数启动它，把窗口存成图片：`open -n "apps/desktop/build/AI Translate.app" --args --translate-text 文本文件 --snapshot 截图.png`，另有 `--translate-file 文件 [--bilingual] [--auto-start]`、`--settings`、`--about`、`--dark`；环境变量 `AIT_URL` 可改连别的 `aitd` 地址（只能是本机）
+- 图标：`PLAYWRIGHT_BROWSERS_PATH=0 node scripts/make-icons.mjs` 重新生成插件图标和桌面应用图标（白色「中→A」，底色 `#2852C8`）
 
 `qa` 和 `check-page` 直连模型服务、用 `api-key` 文件里的密钥，而 `aitd` 管的模型用一次性密钥，连不上，要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再 `npm run qa -- --endpoint http://127.0.0.1:8792` 或 `AIT_MODEL_URL=http://127.0.0.1:8792 npm run check-page -- <网址>`。
 
@@ -209,7 +226,7 @@ ait status                                           # 看 aitd、模型、队�
 
 ## 文档
 
-- 架构：`docs/architecture-v1.html`（浏览器打开）
+- 架构：`docs/architecture-v2.html`（当前，浏览器打开）；`docs/architecture-v1.html`（第一版，只读）
 - 译文质量：`docs/quality-review.html`（评测页）、`docs/quality-review-report.html`（评测报告）、`docs/glossary-and-qa-checklist.html`（评测结论、术语和质检清单）
 - 量化盲评：`docs/quant-blind-test.html`
 - 字幕 prompt 写法对比：`docs/srt-prompt-compare.html`

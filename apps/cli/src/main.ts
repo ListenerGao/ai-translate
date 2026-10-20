@@ -1,5 +1,19 @@
 // ait：命令行翻译。文字、标准输入、Markdown、SRT 都交给本机翻译服务 aitd（batch 通道），和浏览器共用缓存和术语表，翻译内容不出本机。
-import { AITD_API, MODEL_PROFILES, TranslateError, aitdHealth, aitdStatus, languageName, parseGlossary, parseMarkdown, parseSrt, SrtFormatError, type GlossaryEntry } from "@ai-translate/core";
+import {
+  AITD_API,
+  MODEL_PROFILES,
+  SrtFormatError,
+  TranslateError,
+  aitdHealth,
+  aitdStatus,
+  documentSegments,
+  languageName,
+  parseDocument,
+  parseGlossary,
+  renderDocument,
+  type GlossaryEntry,
+  type UnitOutcome,
+} from "@ai-translate/core";
 import { existsSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { CliError, EXIT, connect, serviceError, translateAll, type Connection } from "./client.ts";
@@ -122,36 +136,28 @@ async function translateFile(file: string, options: Options, signal: AbortSignal
   const glossary = readGlossary(options.glossaryFile);
   let doc;
   try {
-    doc = format === "srt" ? parseSrt(source) : parseMarkdown(source);
+    doc = parseDocument(format, source);
   } catch (err) {
     if (err instanceof SrtFormatError) throw new CliError(EXIT.usage, `${file} 第 ${err.line} 行格式不对：${err.message}`);
     throw err;
   }
-  const translations = new Map<string, string>();
-  let failed = 0;
+  let outcomes: ReadonlyMap<string, UnitOutcome> = new Map();
   if (doc.units.length === 0) {
     process.stderr.write("没有要翻译的文字（只有代码块、空字幕等），原样输出\n");
   } else {
-    const segments = doc.units.map((u) => ({ id: u.id, text: u.text, ...(u.markup === undefined ? {} : { markup: u.markup }) }));
     const onProgress = progress();
-    const results = await translateAll(connect(), segments, { source: options.from, target: options.to, glossary, signal, ...(onProgress ? { onProgress } : {}) });
-    for (const u of doc.units) {
-      const r = results.get(u.id);
-      if (r?.text !== undefined) translations.set(u.id, r.text);
-      else {
-        failed++;
-        // 没翻成的段落保留原文，stderr 列出行号，退出码 3
-        process.stderr.write(`第 ${u.line} 行没翻成，保留原文：${r?.error ?? "没有返回"}\n`);
-      }
-    }
+    outcomes = await translateAll(connect(), documentSegments(doc), { source: options.from, target: options.to, glossary, signal, ...(onProgress ? { onProgress } : {}) });
   }
-  const output = doc.render(translations, { bilingual: options.bilingual });
+  // 拆段和重组和 aitd 的 /api/translate-document 共用 core 的同一份代码，两边输出逐字一致
+  const { text: output, failed } = renderDocument(doc, outcomes, { bilingual: options.bilingual });
+  // 没翻成的段落保留原文，stderr 列出行号，退出码 3
+  for (const f of failed) process.stderr.write(`第 ${f.line} 行没翻成，保留原文：${f.error}\n`);
   if (target === null) process.stdout.write(output);
   else {
     writeOutput(target, output);
     process.stderr.write(`已写入 ${target}\n`);
   }
-  return failed > 0 ? EXIT.partial : EXIT.ok;
+  return failed.length > 0 ? EXIT.partial : EXIT.ok;
 }
 
 async function status(conn: Connection): Promise<number> {

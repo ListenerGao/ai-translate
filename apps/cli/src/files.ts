@@ -1,11 +1,10 @@
 // 翻译文件：按扩展名认格式、只读 UTF-8、决定输出位置、不覆盖已有文件（除非 --force）。
+import type { DocumentFormat } from "@ai-translate/core";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { CliError, EXIT } from "./client.ts";
 
-export type Format = "markdown" | "srt";
-
-export function detectFormat(file: string): Format {
+export function detectFormat(file: string): DocumentFormat {
   const ext = extname(file).toLowerCase();
   if (ext === ".md" || ext === ".markdown") return "markdown";
   if (ext === ".srt") return "srt";

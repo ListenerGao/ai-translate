@@ -1,11 +1,12 @@
 # ai-translate 项目约定
 
-本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段的本机服务 `aitd`（插件只连它）和命令行 `ait` 已做完；桌面应用到第三阶段再建。
+本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段的本机服务 `aitd`（插件只连它）和命令行 `ait` 已完成；第三阶段的桌面应用 AI Translate（Swift 原生，`apps/desktop`）基础功能已完成，全局快捷键划词和模型管理在做。
 
 ## 红线
 
 - 翻译内容不得发往本机以外的地址。允许的外网请求只有下载模型和安装依赖；不接入任何在线翻译 API（包括 Index-Translate 官方免费 API），除非主人明确要求。插件代码必须校验服务地址（aitd）的主机是 `127.0.0.1` 或 `localhost`，不是就拒绝发送。划词朗读只用本机语音（`SpeechSynthesisVoice.localService` 为 true），不用 Chrome 的联网语音。
 - 本地模型服务只监听 `127.0.0.1`，必须带 API 密钥。aitd 同样只监听 `127.0.0.1`：除 `/health` 外必须带密钥，拒绝非本机 `Host` 和网页来源（`Origin` 不是 `chrome-extension://`），不返回 CORS 头；日志只记事件、计数、耗时和错误码，不记原文、译文和密钥。密钥只存放在 `~/Library/Application Support/ai-translate/api-key`（权限 600）和插件的 `chrome.storage.local`，不进代码、仓库、日志和截图。
+- 桌面应用同样只连本机 aitd（地址校验同插件），密钥只从 `api-key` 文件读、不另存；不写日志、不存翻译历史。签名证书只放在 `~/Library/Application Support/ai-translate/signing/` 的单独钥匙串里（只给这个 App 签名），不动登录钥匙串；安装和登录项只针对 `~/Applications/AI Translate.app`（主人 2026-10-20 授权）。
 - 模型文件（`*.gguf`）不进仓库，统一放 `~/Library/Application Support/ai-translate/models/`。
 - 不改全局 npm 配置和全局 Node 版本：Node 版本由 `.nvmrc` 指定，npm 源由项目 `.npmrc` 指定。
 - 插件权限只有 `storage`、`scripting`，host 权限 `http://*/*`、`https://*/*`（安装时即申请「读取和更改所有网站上的数据」，主人 2026-10-18 定）。content script 在所有网页运行，没开启翻译时只做本地检测（页面语言、是否像文章、划词图标），不发任何请求。新增权限先问主人。
@@ -14,21 +15,22 @@
 ## 已定决策
 
 - 模型：Index-Translate-2B（GGUF，`llama-server` 运行）。模型配置预留 9B 等其他模型，切换只改配置。
-- 架构以 `docs/architecture-v1.html` 为准：插件和命令行只连 `aitd`，`aitd` 管 `llama-server`、调度、缓存和术语表；翻译核心 `packages/core` 用 TypeScript，`aitd`、`ait` 用 Node 22 运行（不用架构图里提的 Bun，主人 2026-10-19 定）。
-- 开发环境：Node 22（`.nvmrc`）+ npm workspaces；开发依赖只有 `typescript`、`esbuild`、`@playwright/test`、`@types/chrome`、`@types/node`（aitd 类型检查用），单测用 Node 内置测试器。新增依赖先说明理由。
+- 架构以 `docs/architecture-v2.html` 为准：插件、命令行、桌面应用只连 `aitd`，`aitd` 管 `llama-server`、调度、缓存和术语表；翻译核心 `packages/core` 用 TypeScript，`aitd`、`ait` 用 Node 22 运行（不用 Bun，主人 2026-10-19 定）；桌面应用用 Swift 原生（SwiftUI + AppKit，不用 Tauri，主人 2026-10-20 定），Markdown、SRT 的拆分重组交给 aitd 的 `/api/translate-document`，和命令行共用 core 的代码。
+- 开发环境：Node 22（`.nvmrc`）+ npm workspaces；开发依赖只有 `typescript`、`esbuild`、`@playwright/test`、`@types/chrome`、`@types/node`（aitd 类型检查用），单测用 Node 内置测试器。桌面应用用 Swift Package，只用系统框架，不用第三方 Swift 包。新增依赖先说明理由。
 - 一段一个请求，不把多段打包成 JSON；prompt 照抄官方 instTrans 格式，细节见 Goal 1 清单「接口决策」。
 - `packages/core` 不得引用 `chrome.*`、DOM 和 Node 内置模块，保证第二阶段的 `aitd`、`ait` 能直接复用。
 
 ## 目录约定
 
-当前结构。预留的 `apps/desktop` 到第三阶段再建，不提前建空目录。
+当前结构。
 
 ```
 packages/core/      翻译核心：段落协议、Translator 接口与 llama-server 实现、aitd 客户端、prompt、术语表、结果校验、缓存键与缓存接口、调度队列、翻译流水线、错误码、模型配置、Markdown 与 SRT 解析
 apps/extension/     浏览器插件：后台调度与缓存、网页端段落提取与渲染、划词翻译、英文文章检测与自动开启、工具栏弹窗、设置页
 apps/server/        aitd 本机翻译服务：HTTP 接口、鉴权、调度、SQLite 缓存、术语表文件、日志、模型进程管理
 apps/cli/           命令行 ait：文字、标准输入、Markdown、SRT 交给 aitd 的 batch 通道
-scripts/            模型下载、模型启动、图标生成脚本，aitd 开机自启（`aitd-service.sh`），命令行安装（`install-cli.sh`），译文回归检查（`qa.ts`、`qa/`）
+apps/desktop/       桌面应用 AI Translate（Swift Package）：AITranslateKit 是不依赖界面的逻辑（连 aitd、翻译窗口和文件翻译的状态、设置，单测覆盖），AITranslate 是界面（菜单栏、翻译窗口、文件卡片、设置、关于）
+scripts/            模型下载、模型启动、图标生成脚本，aitd 开机自启（`aitd-service.sh`），命令行安装（`install-cli.sh`），桌面应用构建安装（`install-desktop.sh`），译文回归检查（`qa.ts`、`qa/`）
 tests/              e2e 用例、测试页面、模拟模型服务、译文回归的样例和基线（`quality/`）
 docs/               架构与说明文档
 goals/              Goal 施工清单
@@ -47,11 +49,12 @@ goals/              Goal 施工清单
 - `npm run qa`：译文回归检查（要模型服务在运行）；换模型、量化版本、提示词或内置术语后必须跑，出现新问题退出码为 1
 - `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790），用到时自动启动模型（`AIT_LLAMA_PORT` 默认 8791，和 `start-model.sh` 冲突）；`AIT_MODEL_URL` 改连已在运行的模型服务
 - 主人装了开机自启：aitd 一直占着 8790，模型常驻 8791（一次性密钥，`api-key` 连不上）。前台调试 aitd 要换端口；改了 `apps/server` 或 `packages/core` 后运行 `launchctl kickstart -k gui/$(id -u)/com.listenergao.ai-translate.aitd` 才生效
+- `npm run desktop:test`：桌面应用单测（Swift Testing）；`npm run desktop:build` 编译、签名到 `apps/desktop/build/`；`scripts/install-desktop.sh install` 装到 `~/Applications` 并启动（改了 `apps/desktop` 后重新 install 才生效）。我这边看不到屏幕：界面用调试参数 `--snapshot` 等截图核对（见 README「开发」），交互和观感请主人试用
 - 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；`qa`、`check-page` 要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再用 `--endpoint` / `AIT_MODEL_URL` 指过去；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
 
 ## 文档入口
 
 - 项目说明与使用：`README.md`
 - 进度、待办、阻塞与决策：`ROADMAP.md`
-- 架构：`docs/architecture-v1.html`（浏览器打开）
+- 架构：`docs/architecture-v2.html`（当前）；`docs/architecture-v1.html`（第一版，只读）
 - 施工清单：`goals/`
