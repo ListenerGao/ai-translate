@@ -82,7 +82,7 @@ async function renderStatus(): Promise<void> {
   };
   if (!checkLocalEndpoint(settings.endpoint).ok) return show("bad", "服务地址不对");
   const api = await aitdHealth(settings.endpoint);
-  if (api === null) return show("bad", "aitd 没启动", "在项目目录运行 npm run aitd");
+  if (api === null) return show("bad", "aitd 没启动", "在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动");
   if (api !== AITD_API) return show("bad", "版本对不上", "插件和 aitd 更新到同一版本");
   if (settings.apiKey.trim() === "") return show("warn", "还没填密钥");
   try {

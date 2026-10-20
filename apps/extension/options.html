@@ -58,7 +58,7 @@
     <div class="field">
       <label for="endpoint">本机翻译服务地址</label>
       <input id="endpoint" type="text" autocomplete="off" spellcheck="false">
-      <p class="hint">只能填本机地址（127.0.0.1 或 localhost）。默认 <code>http://127.0.0.1:8790</code>，在项目目录运行 <code>npm run aitd</code> 启动本机翻译服务 aitd，模型用到时自动启动。</p>
+      <p class="hint">只能填本机地址（127.0.0.1 或 localhost）。默认 <code>http://127.0.0.1:8790</code>。在项目目录运行 <code>scripts/aitd-service.sh install</code> 把本机翻译服务 aitd 设为开机自启（登录后自动加载模型），或运行 <code>npm run aitd</code> 前台启动。</p>
       <p class="error" id="endpoint-error" hidden></p>
     </div>
 

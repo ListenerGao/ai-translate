@@ -8,7 +8,7 @@ export function errorMessage(code: TranslateErrorCode, detail = ""): string {
     case "no-key":
       return "还没填密钥：打开插件设置页，填入 api-key 文件里的密钥";
     case "unreachable":
-      return "本机翻译服务没启动：在项目目录运行 npm run aitd";
+      return "本机翻译服务没启动：在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动";
     case "unauthorized":
       return "密钥不对：到插件设置页重新填写";
     case "timeout":
