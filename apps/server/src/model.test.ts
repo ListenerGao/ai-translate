@@ -160,6 +160,59 @@ describe("ManagedModel", () => {
     assert.equal(startCount(), 2);
   });
 
+  test("4b 空闲时间设为 0：模型常驻，空闲也不停", async () => {
+    const model = await make({ idleMs: 0 });
+    await translateOnce(model, "Stay resident.");
+    const pid = model.pid!;
+    await sleep(300);
+    assert.ok(isAlive(pid));
+    assert.equal((await model.status()).state, "ready");
+  });
+
+  test("4c 预加载：不等请求就启动；运行中、启动中再调不重复启动；启动失败不抛错，原因留在状态里", async () => {
+    process.env.FAKE_LLAMA_START_MS = "200";
+    const model = await make();
+    const preloading = model.preload();
+    await sleep(50);
+    assert.equal((await model.status()).state, "starting");
+    assert.equal(await translateOnce(model, "Arrives while preloading."), "【译】Arrives while preloading.");
+    await preloading;
+    await model.preload();
+    assert.equal((await model.status()).state, "ready");
+    assert.equal(startCount(), 1);
+
+    const broken = await make({ modelFile: join(dir, "missing.gguf") });
+    await broken.preload();
+    assert.match((await broken.status()).detail ?? "", /模型文件不存在/);
+  });
+
+  test("4d aitd 设了 AIT_PRELOAD_SECONDS：启动后不发请求，模型也按时加载", async () => {
+    const home = join(dir, "home");
+    mkdirSync(join(home, "models"), { recursive: true });
+    writeFileSync(join(home, "models", "Index-Translate-2B.Q8_0.gguf"), "");
+    const [aitdPort, llamaPort] = [await freePort(), await freePort()];
+    const aitd = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN], {
+      env: { ...process.env, AIT_HOME: home, AIT_PORT: String(aitdPort), AIT_LLAMA_SERVER: FAKE, AIT_LLAMA_PORT: String(llamaPort), AIT_PRELOAD_SECONDS: "0.5" },
+      stdio: "ignore",
+    });
+    const exited = new Promise<number | null>((resolve) => aitd.once("exit", (code) => resolve(code)));
+    const pidFile = join(home, "run", "llama-server.pid");
+    try {
+      await waitFor(() => existsSync(join(home, "api-key")));
+      assert.equal(existsSync(pidFile), false, "还没到时间，不该启动");
+      await waitFor(() => existsSync(pidFile));
+      const llamaPid = Number(readFileSync(pidFile, "utf8"));
+      await waitFor(() => startCount() === 1);
+      assert.ok(isAlive(llamaPid));
+
+      aitd.kill("SIGTERM");
+      assert.equal(await exited, 0);
+      await waitFor(() => !isAlive(llamaPid), 3000);
+    } finally {
+      if (aitd.exitCode === null) aitd.kill("SIGKILL");
+    }
+  });
+
   test("5 aitd 收到 SIGTERM：模型进程一起退出，不留残留", async () => {
     const home = join(dir, "home");
     mkdirSync(join(home, "models"), { recursive: true });

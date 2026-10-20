@@ -1,5 +1,6 @@
 // 启动 aitd：npm run aitd。前台运行，Ctrl+C 退出。
-// 默认由 aitd 自己按需启动 llama-server、空闲停止；设了 AIT_MODEL_URL 时改连那个已经在运行的 llama-server（调试用，和它共用 api-key）。
+// 默认由 aitd 自己按需启动 llama-server、空闲停止；设了 AIT_PRELOAD_SECONDS 时启动后过这么多秒就加载模型，AIT_IDLE_MINUTES=0 表示不空闲停止
+// （开机自启的配置里两个都设了，见 scripts/aitd-service.sh）。设了 AIT_MODEL_URL 时改连那个已经在运行的 llama-server（调试用，和它共用 api-key）。
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -42,10 +43,12 @@ const managed =
 const model: ModelBackend = managed ?? new ExternalModel({ endpoint: env.AIT_MODEL_URL ?? "", apiKey });
 
 const aitd = await startAitd({ port, apiKey, home, model, version, log });
+const preloadSeconds = env.AIT_PRELOAD_SECONDS === undefined ? NaN : Number(env.AIT_PRELOAD_SECONDS);
+if (managed !== null && preloadSeconds >= 0) setTimeout(() => void managed.preload(), preloadSeconds * 1000).unref();
 console.log(
   managed === null
     ? `aitd ${version} 已启动：${aitd.url}（连已在运行的模型服务 ${env.AIT_MODEL_URL}）`
-    : `aitd ${version} 已启动：${aitd.url}（模型 ${quant}，用到时自动启动）`,
+    : `aitd ${version} 已启动：${aitd.url}（模型 ${quant}，${preloadSeconds >= 0 ? `${preloadSeconds} 秒后加载` : "用到时自动启动"}）`,
 );
 
 let stopping = false;

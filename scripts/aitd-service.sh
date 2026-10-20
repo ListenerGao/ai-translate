@@ -2,7 +2,9 @@
 # aitd 开机自启：用户级 LaunchAgent，登录后自动启动，异常退出自动拉起；随时可以卸载。
 # 用法：scripts/aitd-service.sh install | uninstall | status
 # launchd 里没有 nvm 和 Homebrew 的 PATH：install 时把 Node 22 和 llama-server 的绝对路径写进 plist，升级 Node 后要重新 install。
+# 开机后等 60 秒再加载模型（不和登录时的其他程序抢资源），之后常驻、不空闲停止，用的时候不用等模型启动。
 # 想用别的量化版本：AIT_QUANT=Q4_K_M scripts/aitd-service.sh install
+# 想改回用到时启动、空闲 30 分钟停：AIT_PRELOAD_SECONDS=-1 AIT_IDLE_MINUTES=30 scripts/aitd-service.sh install
 set -euo pipefail
 
 LABEL="com.listenergao.ai-translate.aitd"
@@ -57,6 +59,8 @@ install() {
   <key>EnvironmentVariables</key>
   <dict>
     <key>AIT_LLAMA_SERVER</key><string>$llama</string>
+    <key>AIT_PRELOAD_SECONDS</key><string>${AIT_PRELOAD_SECONDS:-60}</string>
+    <key>AIT_IDLE_MINUTES</key><string>${AIT_IDLE_MINUTES:-0}</string>
     <key>PATH</key><string>$(dirname "$llama"):/usr/bin:/bin:/usr/sbin:/sbin</string>
     $quant_env
   </dict>

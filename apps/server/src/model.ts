@@ -1,5 +1,5 @@
 // 模型服务：aitd 通过它拿到能用的 Translator。
-// 默认用 ManagedModel：aitd 自己按需启动 llama-server、空闲停止；ExternalModel 连一个已经在运行的 llama-server（调试用）。
+// 默认用 ManagedModel：aitd 自己按需启动 llama-server、空闲停止（也可以启动后预加载、不空闲停止）；ExternalModel 连一个已经在运行的 llama-server（调试用）。
 import {
   LlamaServerTranslator,
   TranslateError,
@@ -78,7 +78,7 @@ export interface ManagedModelOptions {
   /** 一次性密钥和进程号文件所在的目录（$AIT_HOME/run） */
   runDir: string;
   modelId?: string;
-  /** 最后一次请求结束后多久没有新请求就停掉，默认 30 分钟 */
+  /** 最后一次请求结束后多久没有新请求就停掉，默认 30 分钟；0 表示不停（常驻） */
   idleMs?: number;
   /** 最多等多久就绪，默认 60 秒 */
   readyTimeoutMs?: number;
@@ -146,6 +146,13 @@ export class ManagedModel implements ModelBackend {
 
   async close(): Promise<void> {
     await this.#stop();
+  }
+
+  /** 提前把模型启动好（开机自启后延时调用），省掉第一次翻译的等待；已在运行或启动中时不重复启动，失败只记日志和状态 */
+  async preload(): Promise<void> {
+    if (this.#stopping !== null || this.#state === "ready") return;
+    this.#o.log?.("model-preload");
+    await this.#ensureStarted().catch(() => undefined);
   }
 
   /** 进程意外退出时的兜底（同步）：aitd 自己要退出了，把模型进程一起带走 */
@@ -277,7 +284,7 @@ export class ManagedModel implements ModelBackend {
 
   #scheduleIdle(): void {
     clearTimeout(this.#idleTimer);
-    if (this.#state !== "ready" || this.#busy > 0) return;
+    if (this.#state !== "ready" || this.#busy > 0 || !(this.#o.idleMs > 0)) return;
     this.#idleTimer = setTimeout(() => {
       this.#o.log?.("model-idle-stop", { idleMinutes: Math.round(this.#o.idleMs / 60_000) });
       void this.#stop();
