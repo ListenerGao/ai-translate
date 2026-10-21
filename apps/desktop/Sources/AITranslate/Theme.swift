@@ -2,9 +2,26 @@
 import AITranslateKit
 import SwiftUI
 
+extension NSColor {
+  static let paragraphHighlight = NSColor.brand.withAlphaComponent(0.14)
+  static let brand = NSColor(srgbRed: 0x28 / 255, green: 0x52 / 255, blue: 0xC8 / 255, alpha: 1)
+}
+
 extension Color {
   /** 品牌色 #2852C8：和 App 图标、插件图标一致（主人 2026-10-20 定） */
-  static let brand = Color(red: 0x28 / 255, green: 0x52 / 255, blue: 0xC8 / 255)
+  static let brand = Color(nsColor: .brand)
+  /** 选中时对应段落的底色，原文、译文两边一样 */
+  static let paragraphHighlight = Color(nsColor: .paragraphHighlight)
+  /** 设置窗口：左边菜单的底色、右边内容的底色（浅色、深色各一套） */
+  static let settingsSidebar = dynamic(light: 0xEDEDED, dark: 0x2B2B2B)
+  static let settingsContent = dynamic(light: 0xF9F9F9, dark: 0x1F1F1F)
+
+  static func dynamic(light: Int, dark: Int) -> Color {
+    func rgb(_ v: Int) -> NSColor {
+      NSColor(srgbRed: CGFloat(v >> 16 & 0xFF) / 255, green: CGFloat(v >> 8 & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+    }
+    return Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? rgb(dark) : rgb(light) })
+  }
 }
 
 /** 圆角卡片：文字区的白底（深色模式下是深灰），细边框、很淡的阴影 */
@@ -60,14 +77,7 @@ struct LanguageMenu: View {
       }
       ForEach(Languages.all) { item($0) }
     } label: {
-      HStack(spacing: 6) {
-        Text(Languages.name(selection)).font(.system(size: 13, weight: .medium))
-        Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
-      }
-      .padding(.vertical, 5)
-      .frame(width: Self.width)
-        .background(Capsule().fill(Color.primary.opacity(0.06)))
-        .contentShape(Capsule())
+      LanguagePill(name: Languages.name(selection))
     }
     .menuStyle(.button)
     .buttonStyle(.plain)
@@ -80,6 +90,22 @@ struct LanguageMenu: View {
     } label: {
       if selection == language.code { Label(language.name, systemImage: "checkmark") } else { Text(language.name) }
     }
+  }
+}
+
+/** 语言胶囊的样子：名字加向下箭头（翻译窗口的语言菜单和划词卡片共用） */
+struct LanguagePill: View {
+  let name: String
+
+  var body: some View {
+    HStack(spacing: 6) {
+      Text(name).font(.system(size: 13, weight: .medium))
+      Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+    }
+    .padding(.vertical, 5)
+    .frame(width: LanguageMenu.width)
+    .background(Capsule().fill(Color.primary.opacity(0.06)))
+    .contentShape(Capsule())
   }
 }
 

@@ -263,10 +263,10 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     <h2>桌面应用（第三阶段）</h2>
     <p class="note">菜单栏和 Dock 都有图标，最低 macOS 14。用 Swift Package 构建，脚本组装成 <code>~/Applications/AI Translate.app</code>，用本机自签名证书签名（身份固定，辅助功能授权一次长期有效）。不用第三方 Swift 包。</p>
     <div class="grid2">
-      <div><h3>菜单栏、Dock 和设置（Goal 6）</h3><p>菜单栏显示 aitd 和模型状态（说法和插件弹窗一致），能打开翻译窗口、翻译剪贴板、翻译文件、设置；设置里改默认语言、术语表（和插件、命令行同一份）、登录时打开。「重启翻译服务」后经 <code>/api/model/load</code> 马上加载模型。</p></div>
+      <div><h3>菜单栏、Dock 和设置（Goal 6）</h3><p>菜单栏显示 aitd 和模型状态（说法和插件弹窗一致），能打开翻译窗口、翻译文件、设置；设置里改默认语言、术语表（和插件、命令行同一份）、登录时打开。「重启翻译服务」后经 <code>/api/model/load</code> 马上加载模型。</p></div>
       <div><h3>翻译窗口（Goal 6）</h3><p>左边输入、右边出译文，停止输入 0.5 秒后翻；按空行分段，每段一个 <code>interactive</code> 请求，再次输入时撤销上一次。</p></div>
       <div><h3>文件翻译（Goal 6）</h3><p>拖入 Markdown、SRT，经 <code>/api/translate-document</code> 走 <code>batch</code> 通道，显示进度，写到原文件旁边，规则和 <code>ait translate</code> 相同。</p></div>
-      <div><h3>划词（Goal 7）</h3><p>任何 App 里选中文字按 <code>⌥D</code>：先用辅助功能接口读选中文字，读不到再模拟 <code>⌘C</code> 并恢复剪贴板。另有翻译剪贴板和右键「服务」菜单，不需要授权。</p></div>
+      <div><h3>划词（Goal 7）</h3><p>任何 App 里选中文字按 <code>⌥D</code>：先用辅助功能接口读选中文字，读不到再模拟 <code>⌘C</code> 并恢复剪贴板。没授权时可以按 <code>⌥A</code> 打开翻译窗口粘贴（翻译剪贴板、右键「服务」菜单主人 2026-10-21 定不做）。</p></div>
       <div><h3>模型管理（Goal 8）</h3><p>App 从 Hugging Face 下载量化版本（断点续传、sha256 校验），aitd 负责列出、切换和删除。</p></div>
       <div><h3>连 aitd</h3><p>只连本机地址；密钥从 <code>api-key</code> 文件读，不另存；请求不带 <code>Origin</code>，和命令行一样。</p></div>
     </div>

@@ -58,6 +58,34 @@ public final class TranslateModel {
       .filter { !$0.isEmpty }
   }
 
+  /**
+   * 每段在原文里的范围（UTF-16，从这段第一行行首到最后一行行尾，不含换行），和 paragraphs 分出来的段一一对应：
+   * 同步滚动定位原文各段、选中时高亮对应段落用。按行看：只有空白的行是段落之间的空行，连续的非空行是同一段
+   */
+  public nonisolated static func paragraphRanges(_ text: String) -> [NSRange] {
+    let ns = text as NSString
+    var ranges: [NSRange] = []
+    var inParagraph = false
+    ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: .byLines) { line, range, _, _ in
+      let blank = line?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+      if blank {
+        inParagraph = false
+      } else if inParagraph, let last = ranges.popLast() {
+        ranges.append(NSRange(location: last.location, length: NSMaxRange(range) - last.location))
+      } else {
+        ranges.append(range)
+        inParagraph = true
+      }
+    }
+    return ranges
+  }
+
+  /** 选中的文字涉及哪几段（选中跨段时是多段）；只是光标、没选中文字时为空 */
+  public nonisolated static func paragraphs(touching selection: NSRange, in ranges: [NSRange]) -> Set<Int> {
+    guard selection.length > 0 else { return [] }
+    return Set(ranges.indices.filter { NSIntersectionRange(ranges[$0], selection).length > 0 })
+  }
+
   /** 输入变了：0.5 秒内没有新的输入才翻；和上一次翻译时一样就不重翻 */
   public func inputChanged() {
     debounceTask?.cancel()
@@ -73,7 +101,7 @@ public final class TranslateModel {
     self.notice = notice
   }
 
-  /** 立即翻：⌘↩、改了语言、翻译剪贴板 */
+  /** 立即翻：⌘↩、改了语言、划词卡片 */
   public func translateNow() {
     debounceTask?.cancel()
     translationTask?.cancel()

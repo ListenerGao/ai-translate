@@ -1,12 +1,12 @@
 # ai-translate 项目约定
 
-本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段的本机服务 `aitd`（插件只连它）和命令行 `ait` 已完成；第三阶段的桌面应用 AI Translate（Swift 原生，`apps/desktop`）基础功能已完成，全局快捷键划词和模型管理在做。
+本地离线翻译工具：模型跑在本机，翻译内容不出本机。第一阶段的浏览器插件（Chrome / Edge，用 Index-Translate-2B 边滑动边翻译网页文章）已完成；第二阶段的本机服务 `aitd`（插件只连它）和命令行 `ait` 已完成；第三阶段的桌面应用 AI Translate（Swift 原生，`apps/desktop`）基础功能和全局快捷键划词已完成（划词待主人日常试用确认），下一步是模型下载与切换。
 
 ## 红线
 
 - 翻译内容不得发往本机以外的地址。允许的外网请求只有下载模型和安装依赖；不接入任何在线翻译 API（包括 Index-Translate 官方免费 API），除非主人明确要求。插件代码必须校验服务地址（aitd）的主机是 `127.0.0.1` 或 `localhost`，不是就拒绝发送。划词朗读只用本机语音（`SpeechSynthesisVoice.localService` 为 true），不用 Chrome 的联网语音。
 - 本地模型服务只监听 `127.0.0.1`，必须带 API 密钥。aitd 同样只监听 `127.0.0.1`：除 `/health` 外必须带密钥，拒绝非本机 `Host` 和网页来源（`Origin` 不是 `chrome-extension://`），不返回 CORS 头；日志只记事件、计数、耗时和错误码，不记原文、译文和密钥。密钥只存放在 `~/Library/Application Support/ai-translate/api-key`（权限 600）和插件的 `chrome.storage.local`，不进代码、仓库、日志和截图。
-- 桌面应用同样只连本机 aitd（地址校验同插件），密钥只从 `api-key` 文件读、不另存；不写日志、不存翻译历史。签名证书只放在 `~/Library/Application Support/ai-translate/signing/` 的单独钥匙串里（只给这个 App 签名），不动登录钥匙串；安装和登录项只针对 `~/Applications/AI Translate.app`（主人 2026-10-20 授权）。
+- 桌面应用同样只连本机 aitd（地址校验同插件），密钥只从 `api-key` 文件读、不另存；不写日志、不存翻译历史。签名证书只放在 `~/Library/Application Support/ai-translate/signing/` 的单独钥匙串里（只给这个 App 签名），不动登录钥匙串；安装和登录项只针对 `~/Applications/AI Translate.app`（主人 2026-10-20 授权）。划词取词只在按快捷键时读一次选中的文字（辅助功能接口，读不到再模拟 `⌘C`），辅助功能权限只用来取词；模拟 `⌘C` 前存下剪贴板全部内容、取完原样恢复，除此之外不自己读写剪贴板（复制按钮这类主人点的操作除外）；取到的文字只发给本机 aitd。
 - 模型文件（`*.gguf`）不进仓库，统一放 `~/Library/Application Support/ai-translate/models/`。
 - 不改全局 npm 配置和全局 Node 版本：Node 版本由 `.nvmrc` 指定，npm 源由项目 `.npmrc` 指定。
 - 插件权限只有 `storage`、`scripting`，host 权限 `http://*/*`、`https://*/*`（安装时即申请「读取和更改所有网站上的数据」，主人 2026-10-18 定）。content script 在所有网页运行，没开启翻译时只做本地检测（页面语言、是否像文章、划词图标），不发任何请求。新增权限先问主人。
@@ -29,7 +29,7 @@ packages/core/      翻译核心：段落协议、Translator 接口与 llama-ser
 apps/extension/     浏览器插件：后台调度与缓存、网页端段落提取与渲染、划词翻译、英文文章检测与自动开启、工具栏弹窗、设置页
 apps/server/        aitd 本机翻译服务：HTTP 接口、鉴权、调度、SQLite 缓存、术语表文件、日志、模型进程管理
 apps/cli/           命令行 ait：文字、标准输入、Markdown、SRT 交给 aitd 的 batch 通道
-apps/desktop/       桌面应用 AI Translate（Swift Package）：AITranslateKit 是不依赖界面的逻辑（连 aitd、翻译窗口和文件翻译的状态、设置，单测覆盖），AITranslate 是界面（菜单栏、翻译窗口、文件卡片、设置、关于）
+apps/desktop/       桌面应用 AI Translate（Swift Package）：AITranslateKit 是不依赖界面的逻辑（连 aitd、翻译窗口和文件翻译的状态、设置、快捷键、取词、卡片位置、同步滚动，单测覆盖），AITranslate 是界面（菜单栏、翻译窗口、文件卡片、划词卡片、全局快捷键、设置、关于）
 scripts/            模型下载、模型启动、图标生成脚本，aitd 开机自启（`aitd-service.sh`），命令行安装（`install-cli.sh`），桌面应用构建安装（`install-desktop.sh`），译文回归检查（`qa.ts`、`qa/`）
 tests/              e2e 用例、测试页面、模拟模型服务、译文回归的样例和基线（`quality/`）
 docs/               架构与说明文档

@@ -33,8 +33,14 @@ struct LanguageBar: View {
 }
 
 struct TranslateView: View {
+  static let resultSpace = "result"
+
   @Bindable var model: TranslateModel
   let files: FileJobHolder
+  /** 原文、译文同步滚动 */
+  let syncer: ScrollSyncer
+  /** 选中时高亮另一边对应的段落 */
+  let highlight: ParagraphHighlight
   let openFile: (URL) -> Void
   let startFile: () -> Void
   let closeFile: () -> Void
@@ -84,7 +90,9 @@ struct TranslateView: View {
             .help("清空")
           }
         }
-        InputTextView(text: $model.input, onDropFile: openFile)
+        InputTextView(text: $model.input, onDropFile: openFile, syncer: syncer, highlighted: highlight.source) { selection in
+          highlight.sourceSelectionChanged(selection, text: model.input)
+        }
           .overlay(alignment: .topLeading) {
             if model.input.isEmpty {
               Text("粘贴或输入要翻译的文字，空行分段")
@@ -95,7 +103,10 @@ struct TranslateView: View {
                 .allowsHitTesting(false)
             }
           }
-          .onChange(of: model.input) { model.inputChanged() }
+          .onChange(of: model.input) {
+            model.inputChanged()
+            highlight.clear()
+          }
         footer
       }
     }
@@ -188,6 +199,16 @@ struct TranslateView: View {
         VStack(alignment: .leading, spacing: 16) {
           ForEach(model.rows) { row in
             rowView(row)
+              // 原文里选中的文字在这段：加底色，和原文那边的底色一样
+              .background {
+                if highlight.target.contains(row.id) {
+                  RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.paragraphHighlight).padding(.horizontal, -6).padding(.vertical, -4)
+                }
+              }
+              // 报出每段顶部的位置，同步滚动按段落对齐、选中高亮找段落用
+              .background(GeometryReader { g in
+                Color.clear.preference(key: RowTopsKey.self, value: [row.id: g.frame(in: .named(Self.resultSpace)).minY])
+              })
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -195,6 +216,12 @@ struct TranslateView: View {
         .padding(.top, 4)
         .padding(.bottom, 15)
         .textSelection(.enabled)
+        .coordinateSpace(.named(Self.resultSpace))
+        .background(ScrollViewFinder { syncer.attachTarget($0) })
+      }
+      .onPreferenceChange(RowTopsKey.self) { tops in
+        let ordered = tops.sorted { $0.key < $1.key }.map(\.value)
+        MainActor.assumeIsolated { syncer.targetTops = ordered }
       }
     }
   }

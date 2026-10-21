@@ -21,6 +21,8 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
 
   let model: TranslateModel
   let files = FileJobHolder()
+  let syncer = ScrollSyncer()
+  private(set) lazy var highlight = ParagraphHighlight(syncer: syncer)
   private let client: AitdClient
   private var window: NSWindow?
 
@@ -87,17 +89,6 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
     return nil
   }
 
-  /** 把剪贴板里的文字拿来翻 */
-  func translateClipboard() {
-    let text = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    if text.isEmpty {
-      show()
-      model.show(notice: "剪贴板里没有文字：先复制要翻译的文字")
-    } else {
-      show(text: text)
-    }
-  }
-
   private func makeWindow() -> NSWindow {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 920, height: 580),
@@ -120,6 +111,8 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
     window.contentView = NSHostingView(rootView: TranslateView(
       model: model,
       files: files,
+      syncer: syncer,
+      highlight: highlight,
       openFile: { [weak self] in self?.translateFile($0) },
       startFile: { [weak self] in self?.startFile() },
       closeFile: { [weak self] in self?.closeFile() },
@@ -169,13 +162,17 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
     if case .translating = files.job?.phase { true } else { false }
   }
 
-  /** 调试用：等翻译结束后把窗口内容存成 PNG（我这边看不到屏幕，靠它核对界面） */
-  func snapshot(to path: String) {
+  /** 调试用：等翻译结束后把窗口内容存成 PNG（我这边看不到屏幕，靠它核对界面）；scroll 给了时先把原文或译文滚到那个比例，核对另一边跟着滚 */
+  func snapshot(to path: String, scroll: (source: Bool, fraction: Double)? = nil) {
     Task {
       for _ in 0..<150 where model.isTranslating || fileBusy || model.rows.isEmpty && model.problem == nil && model.notice == nil && files.job == nil && window?.attachedSheet == nil {
         try? await Task.sleep(for: .milliseconds(200))
       }
       try? await Task.sleep(for: .milliseconds(300))
+      if let scroll {
+        syncer.debugScroll(source: scroll.source, fraction: scroll.fraction)
+        try? await Task.sleep(for: .milliseconds(300))
+      }
       // 连同标题栏和工具栏一起截（contentView 的上一层）
       guard let view = window?.contentView?.superview ?? window?.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
       view.cacheDisplay(in: view.bounds, to: rep)

@@ -1,6 +1,8 @@
-// 菜单栏：图标、状态、打开翻译窗口、翻译剪贴板、翻译文件、设置、重启翻译服务、退出。打开菜单时立即刷新状态，平时每 10 秒刷新一次（只请求本机 /health 和 /api/status）。
+// 菜单栏：图标、状态、打开翻译窗口、翻译文件、设置、重启翻译服务、退出。打开菜单时立即刷新状态，平时每 10 秒刷新一次（只请求本机 /health 和 /api/status）。
+// 全局快捷键：⌥D 划词翻译（鼠标旁边弹出翻译卡片）、⌥A 打开翻译窗口（设置里可改）。翻译剪贴板、右键「服务」菜单主人 2026-10-21 定不做。
 // 调试用的启动参数（核对界面用，不碰剪贴板）：--translate-text <文本文件> 启动后打开翻译窗口翻这段文字；
-// --translate-file <文件> [--bilingual] [--auto-start] 打开文件翻译卡片（可直接开始）；--settings 打开设置；--about 打开关于窗口；--snapshot <PNG> 把窗口存成图片；--dark 用深色外观。
+// --translate-file <文件> [--bilingual] [--auto-start] 打开文件翻译卡片（可直接开始）；--settings [general|shortcuts|glossary|service|about] 打开设置（可指定哪一页）；--about 打开关于窗口；--snapshot <PNG> 把窗口存成图片（翻译窗口可加 --scroll source|result <0~1> 先滚动）；--dark 用深色外观；
+// --card <文本文件> 在屏幕中间弹出划词卡片翻这段文字（加 --languages 打开目标语言列表）；--probe <记录文件> 取词实测（Goal 7 CP0）。
 import AITranslateKit
 import AppKit
 
@@ -15,15 +17,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var timer: Timer?
   private var refreshing = false
   private lazy var translateWindow = TranslateWindowController(client: client)
+  private lazy var card = TranslationCardController(client: client)
   private let aboutWindow = AboutWindowController()
-  private lazy var settingsWindow = SettingsWindowController(client: client) { [weak self] target in
+  private var probe: SelectionProbe?
+  private let hotKeys = HotKeyModel(registrar: HotKeyCenter.shared, takenBySystem: HotKeyCenter.takenBySystem)
+  /** 正在取词：连按快捷键时不重复取 */
+  private var capturing = false
+  private var openItem: NSMenuItem!
+  private lazy var settingsWindow = SettingsWindowController(client: client, hotKeys: hotKeys) { [weak self] target in
     self?.translateWindow.model.target = target
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // 取词实测：不建菜单栏图标、不在 Dock 显示，只注册 ⌥D 记录结果
+    if let i = CommandLine.arguments.firstIndex(of: "--probe"), i + 1 < CommandLine.arguments.count {
+      NSApp.setActivationPolicy(.accessory)
+      probe = SelectionProbe(path: CommandLine.arguments[i + 1])
+      probe?.start()
+      return
+    }
     NSApp.mainMenu = buildMainMenu()
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.menu = buildMenu()
+    HotKeyCenter.shared.onPress = { [weak self] id in self?.hotKeyPressed(id) }
+    hotKeys.registerAll()
     show(.checking)
     refresh()
     timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
@@ -37,9 +54,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { snapshotAbout(to: args[i + 1]) }
       return
     }
-    if args.contains("--settings") {
-      settingsWindow.show()
+    if let i = args.firstIndex(of: "--settings") {
+      settingsWindow.show(page: args.indices.contains(i + 1) ? SettingsPage(rawValue: args[i + 1]) : nil)
       if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { settingsWindow.snapshot(to: args[i + 1]) }
+      return
+    }
+    if let i = args.firstIndex(of: "--card"), i + 1 < args.count, let text = try? String(contentsOfFile: args[i + 1], encoding: .utf8) {
+      let screen = NSScreen.main?.visibleFrame ?? .zero
+      card.show(text: text.trimmingCharacters(in: .whitespacesAndNewlines), at: CGPoint(x: screen.midX - 200, y: screen.midY + 200))
+      // --languages：打开目标语言列表（截图核对用）
+      if args.contains("--languages") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in card.state.toggleLanguages(current: card.model.target) }
+      }
+      if let j = args.firstIndex(of: "--snapshot"), j + 1 < args.count { card.snapshot(to: args[j + 1]) }
       return
     }
     if let i = args.firstIndex(of: "--translate-text"), i + 1 < args.count, let text = try? String(contentsOfFile: args[i + 1], encoding: .utf8) {
@@ -50,7 +77,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       if args.contains("--bilingual") { translateWindow.files.job?.bilingual = true }
       if args.contains("--auto-start") { translateWindow.startFile() }
     }
-    if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { translateWindow.snapshot(to: args[i + 1]) }
+    if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
+      // --scroll source|result <0~1>：截图前把原文或译文滚到那个比例
+      let scroll = args.firstIndex(of: "--scroll").flatMap { j in
+        j + 2 < args.count ? Double(args[j + 2]).map { (source: args[j + 1] == "source", fraction: $0) } : nil
+      }
+      translateWindow.snapshot(to: args[i + 1], scroll: scroll)
+    }
   }
 
   /** App 在前台时屏幕顶部的菜单；输入框的 ⌘C、⌘V、⌘A、⌘Z 和 ⌘W 也靠这里的快捷键生效 */
@@ -82,9 +115,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let openFile = NSMenuItem(title: "翻译文件…", action: #selector(chooseFile), keyEquivalent: "o")
     openFile.target = self
     file.addItem(openFile)
-    let clipboard = NSMenuItem(title: "翻译剪贴板", action: #selector(translateClipboard), keyEquivalent: "")
-    clipboard.target = self
-    file.addItem(clipboard)
     fileItem.submenu = file
     main.addItem(fileItem)
     let editItem = NSMenuItem()
@@ -139,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /** 右键 Dock 图标的菜单 */
   func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
     let menu = NSMenu()
-    for (title, action) in [("打开翻译窗口", #selector(openTranslateWindow)), ("翻译剪贴板", #selector(translateClipboard)), ("翻译文件…", #selector(chooseFile)), ("设置…", #selector(openSettings))] {
+    for (title, action) in [("打开翻译窗口", #selector(openTranslateWindow)), ("翻译文件…", #selector(chooseFile)), ("设置…", #selector(openSettings))] {
       let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
       item.target = self
       menu.addItem(item)
@@ -156,12 +186,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(stateItem)
     menu.addItem(detailItem)
     menu.addItem(.separator())
-    let open = NSMenuItem(title: "打开翻译窗口", action: #selector(openTranslateWindow), keyEquivalent: "")
-    open.target = self
-    menu.addItem(open)
-    let clipboard = NSMenuItem(title: "翻译剪贴板", action: #selector(translateClipboard), keyEquivalent: "")
-    clipboard.target = self
-    menu.addItem(clipboard)
+    openItem = NSMenuItem(title: "打开翻译窗口", action: #selector(openTranslateWindow), keyEquivalent: "")
+    openItem.target = self
+    menu.addItem(openItem)
     let file = NSMenuItem(title: "翻译文件…", action: #selector(chooseFile), keyEquivalent: "")
     file.target = self
     menu.addItem(file)
@@ -180,6 +207,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   func menuWillOpen(_ menu: NSMenu) {
     refresh()
+    showShortcut(.openWindow, on: openItem)
+  }
+
+  /** 菜单项右边显示当前的全局快捷键（设置里改了跟着变） */
+  private func showShortcut(_ action: HotKeyAction, on item: NSMenuItem) {
+    let combo = hotKeys.combos[action]
+    item.keyEquivalent = combo.flatMap(HotKeyRecorder.menuKey) ?? ""
+    item.keyEquivalentModifierMask = combo?.eventModifiers ?? []
+  }
+
+  private func hotKeyPressed(_ id: UInt32) {
+    switch HotKeyAction.allCases.first(where: { $0.id == id }) {
+    case .translateSelection: translateSelection()
+    case .openWindow: openTranslateWindow()
+    case nil: break
+    }
+  }
+
+  /** 当前的快捷键文字，提示里用；清空了时为 nil */
+  private func shortcut(_ action: HotKeyAction) -> String? {
+    hotKeys.combos[action]?.display
+  }
+
+  /** 划词翻译：取当前 App 里选中的文字（先辅助功能接口，再模拟 ⌘C），在按快捷键时鼠标所在的位置旁边弹出翻译卡片 */
+  private func translateSelection() {
+    guard !capturing else { return }
+    capturing = true
+    let mouse = NSEvent.mouseLocation
+    Task {
+      let result = await SelectionCapture.capture()
+      capturing = false
+      switch result {
+      case .text(let text):
+        card.show(text: text, at: mouse)
+      case .tooLong(let text):
+        translateWindow.show(text: text)
+        translateWindow.model.show(notice: "选中了 \(text.count) 字，超过划词翻译的 \(SelectionCapture.maxCharacters) 字，已放进翻译窗口")
+      case .empty:
+        break  // 没选中文字：什么都不做，不打开窗口（主人 2026-10-21 定）
+      case .notTrusted:
+        AccessibilityPrompt.show(selection: shortcut(.translateSelection) ?? "快捷键", window: shortcut(.openWindow))
+      }
+    }
   }
 
   private func refresh() {
@@ -203,10 +273,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   @objc private func openTranslateWindow() {
     translateWindow.show()
-  }
-
-  @objc private func translateClipboard() {
-    translateWindow.translateClipboard()
   }
 
   @objc private func chooseFile() {
