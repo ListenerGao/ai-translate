@@ -3,7 +3,8 @@
 # 用法：scripts/aitd-service.sh install | uninstall | status
 # launchd 里没有 nvm 和 Homebrew 的 PATH：install 时把 Node 22 和 llama-server 的绝对路径写进 plist，升级 Node 后要重新 install。
 # 开机后等 60 秒再加载模型（不和登录时的其他程序抢资源），之后常驻、不空闲停止，用的时候不用等模型启动。
-# 想用别的量化版本：AIT_QUANT=Q4_K_M scripts/aitd-service.sh install
+# 换量化版本：在桌面应用「设置 → 模型」里切换（选择存在 settings.json，重启后照用）；
+# 也可以 AIT_QUANT=Q4_K_M scripts/aitd-service.sh install，这样就固定用它，App 里不能切换
 # 想改回用到时启动、空闲 30 分钟停：AIT_PRELOAD_SECONDS=-1 AIT_IDLE_MINUTES=30 scripts/aitd-service.sh install
 set -euo pipefail
 

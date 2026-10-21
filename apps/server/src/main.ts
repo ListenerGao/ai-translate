@@ -6,6 +6,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { startAitd } from "./app.ts";
+import { ModelCatalog, chooseQuant, modelFile } from "./catalog.ts";
 import { Logger } from "./log.ts";
 import { ExternalModel, ManagedModel, type ModelBackend } from "./model.ts";
 
@@ -15,7 +16,10 @@ process.umask(0o077);
 const env = process.env;
 const home = env.AIT_HOME ?? join(homedir(), "Library", "Application Support", "ai-translate");
 const port = Number(env.AIT_PORT ?? 8790);
-const quant = env.AIT_QUANT ?? "Q8_0";
+const modelsDir = join(home, "models");
+const settingsFile = join(home, "settings.json");
+// 用哪个量化版本：AIT_QUANT（固定）> 桌面应用里选的（settings.json）> Q8_0
+const { quant, pinned } = chooseQuant(env.AIT_QUANT, settingsFile);
 const keyFile = join(home, "api-key");
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
@@ -32,7 +36,7 @@ const managed =
   env.AIT_MODEL_URL === undefined
     ? new ManagedModel({
         command: env.AIT_LLAMA_SERVER ?? "llama-server",
-        modelFile: join(home, "models", `Index-Translate-2B.${quant}.gguf`),
+        modelFile: modelFile(modelsDir, quant),
         quant,
         port: Number(env.AIT_LLAMA_PORT ?? 8791),
         runDir: join(home, "run"),
@@ -42,7 +46,8 @@ const managed =
     : null;
 const model: ModelBackend = managed ?? new ExternalModel({ endpoint: env.AIT_MODEL_URL ?? "", apiKey });
 
-const aitd = await startAitd({ port, apiKey, home, model, version, log });
+const catalog = managed === null ? {} : { catalog: new ModelCatalog({ modelsDir, settingsFile, model: managed, pinned, log: (event, fields) => log.info(event, fields) }) };
+const aitd = await startAitd({ port, apiKey, home, model, version, log, ...catalog });
 const preloadSeconds = env.AIT_PRELOAD_SECONDS === undefined ? NaN : Number(env.AIT_PRELOAD_SECONDS);
 if (managed !== null && preloadSeconds >= 0) setTimeout(() => void managed.preload(), preloadSeconds * 1000).unref();
 console.log(

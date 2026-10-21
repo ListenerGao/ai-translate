@@ -27,6 +27,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { SqliteCache, type SqliteCacheOptions } from "./cache.ts";
+import type { ModelCatalog } from "./catalog.ts";
 import { GlossaryFile } from "./glossary.ts";
 import { HttpError, checkCaller, hasKey, readBody, sendError, sendJson } from "./http.ts";
 import { Logger } from "./log.ts";
@@ -43,6 +44,8 @@ export interface AitdOptions {
   /** 数据目录：cache.db、glossary.txt、logs/ */
   home: string;
   model: ModelBackend;
+  /** 本机模型文件的列表、切换、删除（Goal 8）；连外部模型服务时没有 */
+  catalog?: ModelCatalog;
   version: string;
   cache?: SqliteCacheOptions;
   /** 共用的日志；不传就在 home/logs 下新建 */
@@ -146,6 +149,16 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
         log.info("model-load-requested");
         return sendJson(res, 202, { model: await model.status() });
       }
+      case "GET /api/models":
+        return sendJson(res, 200, models().list());
+      case "PUT /api/models/current": {
+        const data = parseJsonObject(await readBody(req, BODY_LIMIT));
+        await models().use(data.quant);
+        return sendJson(res, 200, { model: await model.status(), ...models().list() });
+      }
+      case "DELETE /api/models/:quant":
+        models().remove(((req.url ?? "").split("?")[0] ?? "").slice("/api/models/".length));
+        return sendJson(res, 200, models().list());
       case "GET /api/glossary":
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
         res.end(glossary.text);
@@ -160,6 +173,11 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
         if (route === "unknown") throw new HttpError(404, "not-found", "没有这个接口");
         throw new HttpError(405, "method", "不支持这个请求方法");
     }
+  }
+
+  function models(): ModelCatalog {
+    if (options.catalog === undefined) throw new HttpError(409, "external-model", "连的是外部模型服务（AIT_MODEL_URL），不管理模型文件");
+    return options.catalog;
   }
 
   /**
@@ -274,15 +292,18 @@ export async function startAitd(options: AitdOptions): Promise<Aitd> {
   };
 }
 
-/** 日志里只记已知的接口名，不记原样的地址（可能带查询参数） */
+/** 日志里只记已知的接口名，不记原样的地址（可能带查询参数）；删除模型的地址里带版本名，记成 /api/models/:quant */
 function routeName(req: IncomingMessage): string {
-  const path = (req.url ?? "").split("?")[0];
+  const path = (req.url ?? "").split("?")[0] ?? "";
+  if (path.startsWith("/api/models/") && path !== "/api/models/current") return "/api/models/:quant";
   return path === "/health" ||
     path === "/api/status" ||
     path === "/api/translate" ||
     path === "/api/translate-document" ||
     path === "/api/glossary" ||
-    path === "/api/model/load"
+    path === "/api/model/load" ||
+    path === "/api/models" ||
+    path === "/api/models/current"
     ? path
     : "unknown";
 }

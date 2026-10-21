@@ -1,8 +1,9 @@
 // 菜单栏：图标、状态、打开翻译窗口、翻译文件、设置、重启翻译服务、退出。打开菜单时立即刷新状态，平时每 10 秒刷新一次（只请求本机 /health 和 /api/status）。
 // 全局快捷键：⌥D 划词翻译（鼠标旁边弹出翻译卡片）、⌥A 打开翻译窗口（设置里可改）。翻译剪贴板、右键「服务」菜单主人 2026-10-21 定不做。
 // 调试用的启动参数（核对界面用，不碰剪贴板）：--translate-text <文本文件> 启动后打开翻译窗口翻这段文字；
-// --translate-file <文件> [--bilingual] [--auto-start] 打开文件翻译卡片（可直接开始）；--settings [general|shortcuts|glossary|service|about] 打开设置（可指定哪一页）；--about 打开关于窗口；--snapshot <PNG> 把窗口存成图片（翻译窗口可加 --scroll source|result <0~1> 先滚动）；--dark 用深色外观；
-// --card <文本文件> 在屏幕中间弹出划词卡片翻这段文字（加 --languages 打开目标语言列表）；--probe <记录文件> 取词实测（Goal 7 CP0）。
+// --translate-file <文件> [--bilingual] [--auto-start] 打开文件翻译卡片（可直接开始）；--settings [general|shortcuts|glossary|service|models|about] 打开设置（可指定哪一页，加 --full 截整页）；--about 打开关于窗口；--snapshot <PNG> 把窗口存成图片（翻译窗口可加 --scroll source|result <0~1> 先滚动）；--dark 用深色外观；
+// --card <文本文件> 在屏幕中间弹出划词卡片翻这段文字（加 --languages 打开目标语言列表）；--probe <记录文件> 取词实测（Goal 7 CP0）；
+// --download-model <版本> <目录> [--stop-after-mb N] 用 App 的下载器把这个版本下到指定目录（不动 models/），下到 N MB 时取消，打印进度后退出（Goal 8 实测）。
 import AITranslateKit
 import AppKit
 
@@ -23,8 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let hotKeys = HotKeyModel(registrar: HotKeyCenter.shared, takenBySystem: HotKeyCenter.takenBySystem)
   /** 正在取词：连按快捷键时不重复取 */
   private var capturing = false
+  /** 菜单栏菜单在当前空间看不到，收起后改开翻译窗口 */
+  private var openWindowAfterMenu = false
   private var openItem: NSMenuItem!
-  private lazy var settingsWindow = SettingsWindowController(client: client, hotKeys: hotKeys) { [weak self] target in
+  /** 「模型」页的状态放在这里：关掉设置窗口也接着下载 */
+  private lazy var models = ModelsModel(backend: client)
+  private lazy var settingsWindow = SettingsWindowController(client: client, hotKeys: hotKeys, models: models) { [weak self] target in
     self?.translateWindow.model.target = target
   }
 
@@ -34,6 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       NSApp.setActivationPolicy(.accessory)
       probe = SelectionProbe(path: CommandLine.arguments[i + 1])
       probe?.start()
+      return
+    }
+    if let i = CommandLine.arguments.firstIndex(of: "--download-model"), i + 2 < CommandLine.arguments.count {
+      NSApp.setActivationPolicy(.accessory)
+      downloadForTest(quant: CommandLine.arguments[i + 1], into: URL(fileURLWithPath: CommandLine.arguments[i + 2]))
       return
     }
     NSApp.mainMenu = buildMainMenu()
@@ -56,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     if let i = args.firstIndex(of: "--settings") {
       settingsWindow.show(page: args.indices.contains(i + 1) ? SettingsPage(rawValue: args[i + 1]) : nil)
-      if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { settingsWindow.snapshot(to: args[i + 1]) }
+      if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { settingsWindow.snapshot(to: args[i + 1], fullPage: args.contains("--full")) }
       return
     }
     if let i = args.firstIndex(of: "--card"), i + 1 < args.count, let text = try? String(contentsOfFile: args[i + 1], encoding: .utf8) {
@@ -139,6 +149,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     return main
   }
 
+  /** 调试用（--download-model）：读 Hugging Face 的列表，用 App 的下载器下一个版本到指定目录，打印进度和结果后退出 */
+  private func downloadForTest(quant: String, into dir: URL) {
+    let args = CommandLine.arguments
+    let stopAfter = args.firstIndex(of: "--stop-after-mb").flatMap { args.indices.contains($0 + 1) ? Int64(args[$0 + 1]) : nil }.map { $0 * 1_000_000 }
+    let say: @Sendable (String) -> Void = { line in FileHandle.standardError.write(Data("\(line)\n".utf8)) }
+    Task {
+      do {
+        let downloader = ModelDownloader(directory: dir)
+        guard let model = try await ModelSource.fetchRemote(endpoint: ModelSource.defaultEndpoint).first(where: { $0.quant == quant }) else {
+          say("error 列表里没有 \(quant)")
+          return NSApp.terminate(nil)
+        }
+        say("start \(downloader.downloadedBytes(quant)) of \(model.size)")
+        let started = Date()
+        let task = Task {
+          try await downloader.download(model, from: ModelSource.defaultEndpoint, progress: { bytes in
+            say("progress \(bytes)")
+          }, verifying: { say("verifying") })
+        }
+        if let stopAfter {
+          while downloader.downloadedBytes(quant) < stopAfter { try await Task.sleep(for: .milliseconds(200)) }
+          task.cancel()
+        }
+        let file = try await task.value
+        say("done \(file.path) \(Int(Date().timeIntervalSince(started)))s")
+      } catch is CancellationError {
+        say("cancelled at \(ModelDownloader(directory: dir).downloadedBytes(quant))")
+      } catch {
+        say("error \(ModelsModel.message(error))")
+      }
+      NSApp.terminate(nil)
+    }
+  }
+
   /** 调试用：把关于窗口存成 PNG */
   private func snapshotAbout(to path: String) {
     Task {
@@ -208,6 +252,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   func menuWillOpen(_ menu: NSMenu) {
     refresh()
     showShortcut(.openWindow, on: openItem)
+    checkMenuVisible()
+  }
+
+  /**
+   * 菜单栏菜单弹出后看一眼它在不在当前空间：App 在 Dock 常驻、又不在前台时，别的 App 全屏的那块屏幕上，系统不让它的菜单进那个全屏空间，
+   * 弹出来也看不到（主人 2026-10-21 总验收发现，和划词卡片的语言列表是同一个原因）。这时收起菜单，改为在桌面打开翻译窗口（主人定）
+   */
+  private func checkMenuVisible() {
+    // 菜单窗口要过一会儿才建好：每 0.08 秒找一次，最多等约 0.6 秒，找到就判断一次
+    let deadline = Date().addingTimeInterval(0.6)
+    let timer = Timer(timeInterval: 0.08, repeats: true) { [weak self] timer in
+      let done = MainActor.assumeIsolated { () -> Bool in
+        guard let self, let window = NSApp.windows.first(where: { $0.isVisible && $0.level == .popUpMenu }) else { return Date() > deadline }
+        if !window.isOnActiveSpace {
+          self.openWindowAfterMenu = true
+          self.statusItem.menu?.cancelTracking()
+        }
+        return true
+      }
+      if done { timer.invalidate() }
+    }
+    // 菜单打开期间 run loop 在事件跟踪模式，要加到 common 模式里才会触发
+    RunLoop.main.add(timer, forMode: .common)
+  }
+
+  func menuDidClose(_ menu: NSMenu) {
+    guard openWindowAfterMenu else { return }
+    openWindowAfterMenu = false
+    // 等菜单完全收起再打开窗口：系统会切回桌面，窗口出现在那里，光标停在输入框
+    DispatchQueue.main.async { [weak self] in self?.openTranslateWindow() }
   }
 
   /** 菜单项右边显示当前的全局快捷键（设置里改了跟着变） */

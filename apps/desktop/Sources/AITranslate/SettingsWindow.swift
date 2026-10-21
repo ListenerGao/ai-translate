@@ -1,13 +1,13 @@
 // 设置窗口：左边菜单、右边内容（主人 2026-10-20 要求，参考微信的设置窗口）。
 // 通用（默认翻译成、登录时打开）、快捷键（改键、辅助功能权限）、术语表（读写 aitd，和插件、命令行同一份）、翻译服务（状态、模型、缓存、重启）、
-// 关于（和关于窗口同一份内容，主人 2026-10-20 要求加）。
+// 模型（量化版本的下载、切换、删除，Goal 8，见 ModelsPage.swift）、关于（和关于窗口同一份内容，主人 2026-10-20 要求加）。
 import AITranslateKit
 import AppKit
 import Observation
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-  case general, shortcuts, glossary, service, about
+  case general, shortcuts, glossary, service, models, about
 
   var id: Self { self }
 
@@ -17,6 +17,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .shortcuts: "快捷键"
     case .glossary: "术语表"
     case .service: "翻译服务"
+    case .models: "模型"
     case .about: "关于"
     }
   }
@@ -27,6 +28,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .shortcuts: "command"
     case .glossary: "character.book.closed"
     case .service: "server.rack"
+    case .models: "cube"
     case .about: "info.circle"
     }
   }
@@ -43,6 +45,7 @@ struct SettingsView: View {
   static let size = NSSize(width: 760, height: 560)
 
   @Bindable var model: SettingsModel
+  let models: ModelsModel
   let login: LoginItem
   let recorder: HotKeyRecorder
   let navigation: SettingsNavigation
@@ -65,6 +68,7 @@ struct SettingsView: View {
               case .general: general
               case .shortcuts: shortcuts
               case .glossary: glossary
+              case .models: ModelsPage(model: models)
               case .service, .about: service
               }
             }
@@ -400,6 +404,7 @@ struct SoftButtonStyle: ButtonStyle {
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
   let model: SettingsModel
+  let models: ModelsModel
   let login = LoginItem()
   let recorder: HotKeyRecorder
   let navigation = SettingsNavigation()
@@ -407,8 +412,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
   private var window: NSWindow?
   private let targetChanged: (String) -> Void
 
-  init(client: AitdClient, hotKeys: HotKeyModel, targetChanged: @escaping (String) -> Void) {
+  init(client: AitdClient, hotKeys: HotKeyModel, models: ModelsModel, targetChanged: @escaping (String) -> Void) {
     self.client = client
+    self.models = models
     model = SettingsModel(backend: client)
     recorder = HotKeyRecorder(hotKeys: hotKeys)
     self.targetChanged = targetChanged
@@ -440,6 +446,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     window.standardWindowButton(.zoomButton)?.isHidden = true
     window.contentView = NSHostingView(rootView: SettingsView(
       model: model,
+      models: models,
       login: login,
       recorder: recorder,
       navigation: navigation,
@@ -505,15 +512,23 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
   }
 
   /** 调试用：读完术语表和服务状态后把设置窗口存成 PNG */
-  func snapshot(to path: String) {
+  /** 调试用：把设置窗口存成 PNG；fullPage 时只存右边内容、整页（包括要滚动才看得到的部分） */
+  func snapshot(to path: String, fullPage: Bool = false) {
     Task {
       for _ in 0..<50 where model.service == .checking || !model.glossaryLoaded && model.glossaryMessage == nil {
         try? await Task.sleep(for: .milliseconds(200))
       }
-      try? await Task.sleep(for: .milliseconds(400))
-      guard let view = window?.contentView?.superview ?? window?.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+      try? await Task.sleep(for: .milliseconds(fullPage ? 1500 : 400))
+      let page = fullPage ? Self.scrollView(in: window?.contentView)?.documentView : nil
+      guard let view = page ?? window?.contentView?.superview ?? window?.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
       view.cacheDisplay(in: view.bounds, to: rep)
       try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
+  }
+
+  private static func scrollView(in view: NSView?) -> NSScrollView? {
+    guard let view else { return nil }
+    if let scroll = view as? NSScrollView { return scroll }
+    return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
   }
 }

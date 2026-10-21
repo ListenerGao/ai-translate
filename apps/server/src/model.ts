@@ -108,9 +108,13 @@ export class ManagedModel implements ModelBackend {
   #translator: LlamaServerTranslator | null = null;
   #starting: Promise<LlamaServerTranslator> | null = null;
   #stopping: Promise<void> | null = null;
+  /** 正在换模型文件（Goal 8）：这期间来的请求等换好再翻 */
+  #switching: Promise<void> | null = null;
   #failures: number[] = [];
   #output: string[] = [];
   #busy = 0;
+  /** 等正在翻的段落都翻完（换模型前） */
+  #drained: (() => void)[] = [];
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: ManagedModelOptions) {
@@ -131,10 +135,60 @@ export class ManagedModel implements ModelBackend {
     return join(this.#o.runDir, "llama-server.pid");
   }
 
+  /** 当前的量化版本 */
+  get quant(): string {
+    return this.#o.quant;
+  }
+
   async translator(): Promise<Translator> {
-    if (this.#stopping !== null) await this.#stopping;
-    const inner = this.#state === "ready" && this.#translator !== null ? this.#translator : await this.#ensureStarted();
+    const inner = await this.#ready();
     return { translate: (req, signal) => this.#track(inner, req, signal) };
+  }
+
+  /**
+   * 换一个模型文件（Goal 8 切换量化版本）：等正在翻的段落翻完，停掉旧模型，换文件启动新模型，就绪后返回；
+   * 切换期间进来的请求等新模型就绪后再翻。新模型启动失败（文件损坏等）时退回原来的文件、重新启动，再抛出原因
+   */
+  async switchTo(quant: string, modelFile: string): Promise<void> {
+    while (this.#switching !== null) await this.#switching.catch(() => undefined);
+    if (quant === this.#o.quant && modelFile === this.#o.modelFile) return;
+    const run = this.#switch(quant, modelFile);
+    this.#switching = run.catch(() => undefined).finally(() => (this.#switching = null));
+    return run;
+  }
+
+  async #switch(quant: string, modelFile: string): Promise<void> {
+    await this.#starting?.catch(() => undefined);
+    await this.#drain();
+    const from = { quant: this.#o.quant, modelFile: this.#o.modelFile };
+    const started = performance.now();
+    await this.#stop();
+    Object.assign(this.#o, { quant, modelFile });
+    this.#failures = [];
+    try {
+      await this.#ensureStarted();
+      this.#o.log?.("model-switched", { from: from.quant, to: quant, ms: Math.round(performance.now() - started) });
+    } catch (err) {
+      this.#o.log?.("model-switch-failed", { from: from.quant, to: quant });
+      Object.assign(this.#o, from);
+      this.#failures = [];
+      await this.#ensureStarted().catch(() => undefined);
+      throw err;
+    }
+  }
+
+  #drain(): Promise<void> {
+    return this.#busy === 0 ? Promise.resolve() : new Promise((resolve) => this.#drained.push(resolve));
+  }
+
+  /** 等正在换模型、正在停的结束，再拿到就绪的模型（没在运行就启动） */
+  async #ready(): Promise<LlamaServerTranslator> {
+    for (;;) {
+      if (this.#switching !== null) await this.#switching;
+      else if (this.#stopping !== null) await this.#stopping;
+      else break;
+    }
+    return this.#state === "ready" && this.#translator !== null ? this.#translator : this.#ensureStarted();
   }
 
   async status(): Promise<ModelStatus> {
@@ -152,7 +206,7 @@ export class ManagedModel implements ModelBackend {
 
   /** 提前把模型启动好（开机自启后延时调用），省掉第一次翻译的等待；已在运行或启动中时不重复启动，失败只记日志和状态 */
   async preload(): Promise<void> {
-    if (this.#stopping !== null || this.#state === "ready") return;
+    if (this.#stopping !== null || this.#switching !== null || this.#state === "ready") return;
     this.#o.log?.("model-preload");
     await this.#ensureStarted().catch(() => undefined);
   }
@@ -268,6 +322,8 @@ export class ManagedModel implements ModelBackend {
   }
 
   async *#track(inner: Translator, req: TranslateRequest, signal: AbortSignal): AsyncIterable<TranslateResult> {
+    // 拿到模型之后、开始翻之前换了模型：用换好的
+    if (this.#switching !== null || inner !== this.#translator) inner = await this.#ready();
     this.#busy++;
     clearTimeout(this.#idleTimer);
     try {
@@ -280,7 +336,10 @@ export class ManagedModel implements ModelBackend {
       throw err;
     } finally {
       this.#busy--;
-      if (this.#busy === 0) this.#scheduleIdle();
+      if (this.#busy === 0) {
+        this.#scheduleIdle();
+        for (const resolve of this.#drained.splice(0)) resolve();
+      }
     }
   }
 
