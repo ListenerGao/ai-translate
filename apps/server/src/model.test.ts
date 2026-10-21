@@ -290,7 +290,7 @@ describe("ManagedModel", () => {
 
   test("模型文件不存在、命令不存在：给出明确原因", async () => {
     const noFile = await make({ modelFile: join(dir, "missing.gguf") });
-    await assert.rejects(translateOnce(noFile, "No model file."), serverError(/模型文件不存在.*download-model\.sh/));
+    await assert.rejects(translateOnce(noFile, "No model file."), serverError(/模型文件不存在.*「设置 → 模型」.*download-model\.sh/));
     const noCommand = await make({ command: join(dir, "no-such-llama-server") });
     await assert.rejects(translateOnce(noCommand, "No command."), serverError(/找不到 .*brew install llama\.cpp/));
     assert.equal(startCount(), 0);

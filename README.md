@@ -213,7 +213,7 @@ ait status                                           # 看 aitd、模型、队�
 - **页面提示「本机翻译服务没启动」、弹窗显示「aitd 没启动」**：运行 `scripts/aitd-service.sh status`。显示「没有安装开机自启」就按「从源码安装」第 4 步启动（用发布包的话打开 App 就行）；显示「服务：连不上」就看 `~/Library/Application Support/ai-translate/logs/launchd.log`
 - **「密钥不对」**：重新运行 `pbcopy < ~/Library/Application\ Support/ai-translate/api-key`，粘贴到设置页保存。命令行直接读这个文件，退出码 2 时先确认 `aitd` 在运行
 - **aitd 起不来，日志里说端口被占用**：8790 或 8791 被别的程序占了，常见是还开着 `npm run aitd` 或 `scripts/start-model.sh`，停掉它们再试。用发布包时 App 会自动换到 8791 等空端口，插件的服务地址改成 App「设置 → 翻译服务」里显示的
-- **模型状态显示「出错」**：鼠标停在状态上看原因。常见是模型文件没下载（运行 `scripts/download-model.sh`）或没装 llama.cpp（`brew install llama.cpp`）
+- **模型状态显示「出错」**：鼠标停在状态上看原因。常见是模型文件没下载（在桌面应用「设置 → 模型」里下载，或运行 `scripts/download-model.sh`）或没装 llama.cpp（`brew install llama.cpp`）
 - **`ait: command not found`**：`~/.local/bin` 不在 `PATH` 里，在 `~/.zshrc` 加一行 `export PATH="$HOME/.local/bin:$PATH"` 后新开终端
 - **升级 Node 后 aitd 或 ait 用不了**：重新运行 `scripts/aitd-service.sh install` 和 `scripts/install-cli.sh install`
 - **插件提示「打开 AI Translate 桌面应用」**：用的是发布包的话，本机翻译服务由 App 启动，App 关着时插件就连不上；打开 App 后插件会自己接着翻。从源码安装的照第一条处理
