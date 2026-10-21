@@ -97,7 +97,7 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
       contentRect: NSRect(x: 0, y: 0, width: 920, height: 580),
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
-      defer: false,
+      defer: false
     )
     window.title = "AI Translate"
     // 标题栏透明、不显示标题；语言选择放进统一样式的工具栏，居中，和左上角的红绿灯同一行，窗口看起来是一整块
@@ -118,7 +118,7 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
       highlight: highlight,
       openFile: { [weak self] in self?.translateFile($0) },
       startFile: { [weak self] in self?.startFile() },
-      closeFile: { [weak self] in self?.closeFile() },
+      closeFile: { [weak self] in self?.closeFile() }
     ))
     window.isReleasedWhenClosed = false
     window.delegate = self

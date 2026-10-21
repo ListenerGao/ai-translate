@@ -54,7 +54,7 @@ extension AitdClient: TranslateBackend {
     let lines = ndjson(
       "api/translate",
       body: Body(segments: segments, source: source, target: target, model: Self.modelID, lane: "interactive", priority: 0),
-      as: Line.self,
+      as: Line.self
     )
     return AsyncThrowingStream { continuation in
       let task = Task {

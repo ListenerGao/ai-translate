@@ -56,7 +56,7 @@ public enum SelectionCapture {
   public static func capture(
     trusted: Bool = isTrusted,
     readAX: () -> String? = { readSelectedText().text },
-    copy: () async -> String? = { await copySelection().text },
+    copy: () async -> String? = { await copySelection().text }
   ) async -> Result {
     guard trusted else { return .notTrusted }
     var raw = readAX()
@@ -119,7 +119,7 @@ public enum SelectionCapture {
     from pasteboard: NSPasteboard = .general,
     timeout: Duration = .milliseconds(300),
     waitForKeys: Bool = true,
-    postCopy: () -> Void = postCommandC,
+    postCopy: () -> Void = postCommandC
   ) async -> CopyRead {
     if waitForKeys { await waitForModifiersReleased() }
     let snapshot = PasteboardSnapshot.take(pasteboard)

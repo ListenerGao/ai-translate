@@ -46,7 +46,7 @@ final class AboutWindowController {
       contentRect: NSRect(x: 0, y: 0, width: 300, height: 292),
       styleMask: [.titled, .closable, .fullSizeContentView],
       backing: .buffered,
-      defer: false,
+      defer: false
     )
     window.title = "关于 AI Translate"
     window.titleVisibility = .hidden

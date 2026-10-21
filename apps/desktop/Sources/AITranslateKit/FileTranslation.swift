@@ -61,7 +61,7 @@ extension AitdClient: DocumentBackend {
     let lines = ndjson(
       "api/translate-document",
       body: Body(format: format, text: text, source: source, target: target, model: Self.modelID, bilingual: bilingual, lane: "batch"),
-      as: Line.self,
+      as: Line.self
     )
     return AsyncThrowingStream { continuation in
       let task = Task {

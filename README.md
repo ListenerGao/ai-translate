@@ -36,11 +36,12 @@ Chrome 插件 ───┐
 
 ## 安装
 
-需要 macOS（Apple Silicon）、Homebrew、Node 22（用 `nvm` 管理）和 Chrome 120 以上；桌面应用另外要 macOS 14 以上和 Xcode 16 以上（Swift 6）。
+需要 Apple Silicon 的 Mac（模型文件约 2.1 GB，常驻时实际多占约 0.5 GB 内存）、Homebrew、Node 22（用 `nvm` 管理，官方脚本或 `brew install nvm` 装都行）和 Chrome 120 以上；桌面应用另外要 macOS 14 以上和 Xcode 16 以上（推荐最新版；在 Xcode 26.3 上验证过，16.x 没有实测，编译出错就升级 Xcode）。只用插件和命令行的话不需要 Xcode，跳过第 9 步。
 
+0. 拿到代码：`git clone https://github.com/ListenerGao/ai-translate.git && cd ai-translate`
 1. 安装 llama.cpp：`brew install llama.cpp`
 2. 在仓库目录装依赖：`nvm use && npm install`
-3. 下载模型（下载后校验 sha256，存到 `~/Library/Application Support/ai-translate/models/`）：`scripts/download-model.sh`
+3. 下载模型（下载后校验 sha256，存到 `~/Library/Application Support/ai-translate/models/`）：`scripts/download-model.sh`。访问不了 huggingface.co 时换成镜像：`HF_ENDPOINT=https://hf-mirror.com scripts/download-model.sh`；中断了重跑会接着下。也可以先装桌面应用（第 9 步），在「设置 → 模型」里下载，那里同样能换镜像地址
 4. 启动本机翻译服务 `aitd`，二选一：
    - **开机自启（推荐）**：`scripts/aitd-service.sh install`。登录后自动运行，异常退出自动拉起；登录后等 60 秒加载模型，之后一直常驻（约多占 0.5 GB 内存），用的时候不用等模型启动
    - **前台运行**：`npm run aitd`，关掉终端就停。第一次翻译时自动启动模型（多等约 1~3 秒），空闲 30 分钟停掉
@@ -231,6 +232,10 @@ ait status                                           # 看 aitd、模型、队�
 `qa` 和 `check-page` 直连模型服务、用 `api-key` 文件里的密钥，而 `aitd` 管的模型用一次性密钥，连不上，要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再 `npm run qa -- --endpoint http://127.0.0.1:8792` 或 `AIT_MODEL_URL=http://127.0.0.1:8792 npm run check-page -- <网址>`。
 
 目录说明见 `AGENTS.md`。
+
+## 许可证
+
+代码以 MIT 许可证开源，见 `LICENSE`。模型不在本仓库里，Index-Translate-2B 的使用条款以它在 Hugging Face 上（`IndexTeam/Index-Translate-2B`）的说明为准。
 
 ## 文档
 

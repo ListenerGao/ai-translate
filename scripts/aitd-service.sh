@@ -19,11 +19,16 @@ PORT=8790
 loaded() { launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; }
 healthy() { curl -fsS --max-time 1 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; }
 
-# 按 .nvmrc 找 nvm 里的 Node（nvm.sh 不兼容 set -u，临时关掉）
+# 按 .nvmrc 找 nvm 里的 Node：先找 $NVM_DIR（默认 ~/.nvm），再找用 Homebrew 装的 nvm（nvm.sh 不兼容 set -u，临时关掉）
 node_path() {
   set +u
-  # shellcheck disable=SC1091
-  source "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || { echo "找不到 nvm（~/.nvm/nvm.sh）" >&2; exit 1; }
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  local script
+  for script in "$NVM_DIR/nvm.sh" "$(brew --prefix nvm 2>/dev/null)/nvm.sh"; do
+    # shellcheck disable=SC1090
+    [[ -s "$script" ]] && source "$script" >/dev/null 2>&1 && break
+  done
+  command -v nvm >/dev/null 2>&1 || { echo "找不到 nvm：先安装 nvm（见 README「安装」），再运行 nvm install" >&2; exit 1; }
   nvm which "$(cat "$ROOT/.nvmrc")" 2>/dev/null | tail -1
   set -u
 }

@@ -42,7 +42,7 @@ final class ScrollSyncer {
       fromTops: sourceTops().map(Double.init),
       toTops: targetTops.map(Double.init),
       fromMax: Self.maxPosition(source),
-      toMax: Self.maxPosition(target),
+      toMax: Self.maxPosition(target)
     )
     if clip === source.contentView, let y = ScrollSync.map(Self.position(source), anchors: anchors) {
       move(target, to: y)

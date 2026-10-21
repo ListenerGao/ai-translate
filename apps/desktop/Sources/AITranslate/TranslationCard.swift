@@ -137,7 +137,7 @@ struct TranslationCardView: View {
           .background(
             Text(model.input).font(.system(size: 14)).lineSpacing(3).fixedSize(horizontal: false, vertical: true).hidden()
               .background(GeometryReader { g in Color.clear.onAppear { sourceFullHeight = g.size.height }.onChange(of: g.size.height) { sourceFullHeight = g.size.height } }),
-            alignment: .top,
+            alignment: .top
           )
         if truncated || state.sourceExpanded {
           CardIconButton(systemImage: "chevron.down", help: state.sourceExpanded ? "收起原文" : "展开原文") {
@@ -413,7 +413,7 @@ final class TranslationCardController: NSObject {
       contentRect: NSRect(x: 0, y: 0, width: TranslationCardView.width, height: 200),
       styleMask: [.borderless, .nonactivatingPanel],
       backing: .buffered,
-      defer: false,
+      defer: false
     )
     panel.isFloatingPanel = true
     panel.level = .floating
@@ -434,7 +434,7 @@ final class TranslationCardController: NSObject {
       togglePin: { [weak self] in self?.state.pinned.toggle() },
       copy: { [weak self] in self?.copyAll() },
       // 在排版过程中被调到：下一拍再改面板大小
-      resized: { [weak self] size in DispatchQueue.main.async { self?.place(size: size) } },
+      resized: { [weak self] size in DispatchQueue.main.async { self?.place(size: size) } }
     ))
     hosting.sizingOptions = [.intrinsicContentSize]
     panel.contentView = hosting
@@ -485,7 +485,7 @@ final class TranslationCardController: NSObject {
       x: panel.frame.minX + pill.minX,
       y: panel.frame.maxY - pill.maxY - 4 - CardLanguageList.height,
       width: CardLanguageList.width,
-      height: CardLanguageList.height,
+      height: CardLanguageList.height
     )
     if let visible = panel.screen?.visibleFrame {
       frame.origin.x = CardPlacement.clamp(frame.minX, visible.minX + CardPlacement.margin, visible.maxX - CardPlacement.margin - frame.width)
@@ -499,7 +499,7 @@ final class TranslationCardController: NSObject {
       contentRect: NSRect(x: 0, y: 0, width: CardLanguageList.width, height: CardLanguageList.height),
       styleMask: [.borderless, .nonactivatingPanel],
       backing: .buffered,
-      defer: false,
+      defer: false
     )
     list.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
     list.isOpaque = false

@@ -435,7 +435,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
       contentRect: NSRect(origin: .zero, size: SettingsView.size),
       styleMask: [.titled, .closable, .fullSizeContentView],
       backing: .buffered,
-      defer: false,
+      defer: false
     )
     window.title = "AI Translate 设置"
     // 不显示标题和标题栏，左上角只留关闭按钮（参考微信的设置窗口）
@@ -451,7 +451,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
       recorder: recorder,
       navigation: navigation,
       targetChanged: targetChanged,
-      restartService: { [weak self] in self?.restartService() },
+      restartService: { [weak self] in self?.restartService() }
     ))
     window.isReleasedWhenClosed = false
     window.delegate = self
