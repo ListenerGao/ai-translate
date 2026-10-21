@@ -24,10 +24,13 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
   let syncer = ScrollSyncer()
   private(set) lazy var highlight = ParagraphHighlight(syncer: syncer)
   private let client: AitdClient
+  /** 点右上角的 logo 打开设置 */
+  private let openSettings: () -> Void
   private var window: NSWindow?
 
-  init(client: AitdClient) {
+  init(client: AitdClient, openSettings: @escaping () -> Void) {
     self.client = client
+    self.openSettings = openSettings
     model = TranslateModel(backend: client, target: Preferences.target)
   }
 
@@ -135,9 +138,9 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
 
   func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
     if id == Self.logoItem {
-      // 右上角的 logo：用 App 图标（主人 2026-10-20 要求）
+      // 右上角的 logo：用 App 图标（主人 2026-10-20 要求），点了打开设置（主人 2026-10-21 要求）
       let item = NSToolbarItem(itemIdentifier: id)
-      let view = NSHostingView(rootView: Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 28, height: 28).help("AI Translate"))
+      let view = NSHostingView(rootView: LogoButton { [weak self] in self?.openSettings() })
       view.frame.size = NSSize(width: 28, height: 28)
       item.view = view
       item.label = "AI Translate"
@@ -183,5 +186,24 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
         try? sheetRep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path.replacingOccurrences(of: ".png", with: "-sheet.png")))
       }
     }
+  }
+}
+
+/** 翻译窗口右上角的 logo：点了打开设置，鼠标移上去稍微变淡 */
+struct LogoButton: View {
+  let action: () -> Void
+  @State private var hover = false
+
+  var body: some View {
+    Button(action: action) {
+      Image(nsImage: NSApp.applicationIconImage)
+        .resizable()
+        .frame(width: 28, height: 28)
+        .opacity(hover ? 0.75 : 1)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .onHover { hover = $0 }
+    .help("设置（⌘,）")
   }
 }

@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var state: ServiceState = .checking
   private var timer: Timer?
   private var refreshing = false
-  private lazy var translateWindow = TranslateWindowController(client: client)
+  private lazy var translateWindow = TranslateWindowController(client: client) { [weak self] in self?.openSettings() }
   private lazy var card = TranslationCardController(client: client)
   private let aboutWindow = AboutWindowController()
   private var probe: SelectionProbe?
