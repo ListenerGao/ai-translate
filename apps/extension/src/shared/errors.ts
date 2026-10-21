@@ -8,7 +8,8 @@ export function errorMessage(code: TranslateErrorCode, detail = ""): string {
     case "no-key":
       return "还没填密钥：打开插件设置页，填入 api-key 文件里的密钥";
     case "unreachable":
-      return "本机翻译服务没启动：在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动";
+      // 发布包里的 App 关着时就是这个情况（Goal 9，主人 2026-10-21 要求提示打开桌面应用）
+      return "本机翻译服务没启动：打开 AI Translate 桌面应用就会启动它（已经开着的话，在它的「设置 → 翻译服务」核对服务地址）；从源码安装的，在项目目录运行 scripts/aitd-service.sh install 或 npm run aitd";
     case "unauthorized":
       return "密钥不对：到插件设置页重新填写";
     case "timeout":

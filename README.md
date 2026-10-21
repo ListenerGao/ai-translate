@@ -34,7 +34,17 @@ Chrome 插件 ───┐
 - 架构说明见 `docs/architecture-v2.html`
 - 模型默认用 Index-Translate-2B 的 Q8_0 量化版本（约 2.1 GB），用 Apple Silicon 的 GPU 运行
 
-## 安装
+## 直接下载使用（不用装开发环境）
+
+拿到发布包 `AI-Translate-<版本>-macos-arm64.zip`（维护者用 `scripts/package-release.sh` 打包，见「开发」）后，照包里的「使用说明.txt」做：
+
+1. 把 `AI Translate.app` 拖进「应用程序」再打开；第一次被系统拦下（App 用的是自签名证书，没有做付费的苹果公证）时，到「系统设置 → 隐私与安全性」点「仍要打开」
+2. 按引导下载模型（Q4_K_M，约 1.3 GB），下完就能用翻译窗口（`⌥A`）、划词（`⌥D`）
+3. Chrome 插件：把包里的「Chrome 插件」文件夹放到不会删的位置，在 `chrome://extensions` 的开发者模式里「加载已解压的扩展程序」；App 的「设置 → 翻译服务」里「Chrome 插件连接」显示服务地址（插件里默认是 `http://127.0.0.1:8790`，一样就不用改），点「复制密钥」粘贴到插件设置的「密钥」
+
+App 里带了 Node 22 运行时、打成单文件的 `aitd` 和 `ait`、llama.cpp 的 `llama-server`：打开 App 时，8790~8799 上已经有 `aitd` 就直接用，没有就启动 App 里的，退出 App 时一起停。8790 被别的程序占着时依次试 8791、8792……，上次用的端口优先（插件里填的地址不用跟着变），用上的端口记在 App 的设置里，App 装的命令行 `ait` 也连它；所以插件要 App 开着才能翻译，App 关着时插件提示打开它。只支持 Apple Silicon、macOS 14 以上。
+
+## 从源码安装
 
 需要 Apple Silicon 的 Mac（模型文件约 2.1 GB，常驻时实际多占约 0.5 GB 内存）、Homebrew、Node 22（用 `nvm` 管理，官方脚本或 `brew install nvm` 装都行）和 Chrome 120 以上；桌面应用另外要 macOS 14 以上和 Xcode 16 以上（推荐最新版；在 Xcode 26.3 上验证过，16.x 没有实测，编译出错就升级 Xcode）。只用插件和命令行的话不需要 Xcode，跳过第 9 步。
 
@@ -101,7 +111,7 @@ Chrome 插件 ───┐
 
 在插件详情里打开「扩展程序选项」：
 
-- **本机翻译服务地址**：默认 `http://127.0.0.1:8790`，只能填本机地址（`127.0.0.1` 或 `localhost`）；旧版存的 8791 会自动改过来
+- **本机翻译服务地址**：默认 `http://127.0.0.1:8790`，只能填本机地址（`127.0.0.1` 或 `localhost`）；用发布包的 App 时以它「设置 → 翻译服务」里显示的为准
 - **密钥**：粘贴 `api-key` 文件里的密钥，点「测试连接」检查
 - **翻译成**：中文、英语、日语、韩语、法语、德语、西班牙语
 - **显示方式**：双语对照 / 只看译文
@@ -117,7 +127,7 @@ Chrome 插件 ───┐
 - **取词方式**：先用系统的辅助功能接口读选中的文字（备忘录、预览这类原生 App），读不到再模拟一次 `⌘C`，取完把剪贴板原样恢复（Chrome、VS Code、微信这类）。只在按快捷键时读一次，只发给本机 `aitd`，不记录、不存历史。没打开辅助功能权限时按 `⌥D` 会弹出说明；不想授权也可以按 `⌥A` 打开翻译窗口，把文字粘贴进去翻
 - **文件翻译**：把 `.md`、`.markdown`、`.srt` 文件拖进翻译窗口，或者 `⌘O` 选文件，弹出文件卡片：可选「双语」，译文写到原文件旁边（规则和 `ait translate` 相同，结果逐字一致）；输出文件已存在时可以覆盖、另存为或取消；翻译中显示进度、可以取消；完成后能「在访达中显示」，没翻成的段落列出行号并保留原文。不支持的文件弹框提示；只认 UTF-8，单个文件最多 900 KB（更大的用 `ait`）
 - **模型**（设置里的「模型」页）：上面是本机已有的量化版本，能「设为当前」、删除（正在用的删不了，删除前确认）；下面是 Hugging Face 上还能下载的版本，点「下载」显示进度，可以取消，再点「继续下载」从断开的地方接着下，下完按 sha256 校验，一次下一个，关掉设置窗口也接着下。只有 Q8_0、Q4_K_M 评测过译文质量。下载走系统网络设置（系统代理自动生效），访问不了 Hugging Face 时在页面下方换成镜像地址（如 `https://hf-mirror.com`）；下载前看剩余空间，至少要多留 500 MB。这是桌面应用唯一的外网请求，只下模型文件，不发送翻译内容
-- **设置**（`⌘,`，左边选页）：「通用」里是默认翻译成（和翻译窗口的目标语言是同一个设置）、登录时自动打开；「快捷键」里改全局快捷键（点组合键后按新的，`Esc` 取消，鼠标移上去点 × 清空，「恢复默认」），和系统或别的 App 冲突时标红说明，下面是辅助功能权限的状态和打开入口；「术语表」和插件设置页、命令行同一份，写错的行逐行标出，`⌘S` 保存，没保存就关窗口会提醒；「翻译服务」显示状态、模型、缓存条数，「重启翻译服务」后马上重新加载模型；「模型」见上一条；「关于」是版本信息
+- **设置**（`⌘,`，左边选页）：「通用」里是默认翻译成（和翻译窗口的目标语言是同一个设置）、登录时自动打开；「快捷键」里改全局快捷键（点组合键后按新的，`Esc` 取消，鼠标移上去点 × 清空，「恢复默认」），和系统或别的 App 冲突时标红说明，下面是辅助功能权限的状态和打开入口；「术语表」和插件设置页、命令行同一份，写错的行逐行标出，`⌘S` 保存，没保存就关窗口会提醒；「翻译服务」显示状态、模型、缓存条数，「重启翻译服务」后马上重新加载模型，下面「Chrome 插件连接」显示插件要填的本机翻译服务地址，可复制地址和密钥；「模型」见上一条；「关于」是版本信息
 - **快捷键**：全局的 `⌥D` 划词翻译、`⌥A` 打开翻译窗口（在任何 App 里都能按，设置里可改；菜单栏菜单的「打开翻译窗口」旁边标着当前的组合键）；App 里 `⌘N` 打开翻译窗口，`⌘O` 翻译文件，`⌘,` 设置，`⌘↩` 立即翻译，`⌘W` 关窗口，`⌘Q` 退出
 - **更新**：改了 `apps/desktop` 的代码后重新运行 `scripts/install-desktop.sh install`（会先退出正在运行的 App 再替换）
 
@@ -200,12 +210,14 @@ ait status                                           # 看 aitd、模型、队�
 
 ## 常见问题
 
-- **页面提示「本机翻译服务没启动」、弹窗显示「aitd 没启动」**：运行 `scripts/aitd-service.sh status`。显示「没有安装开机自启」就按「安装」第 4 步启动；显示「服务：连不上」就看 `~/Library/Application Support/ai-translate/logs/launchd.log`
+- **页面提示「本机翻译服务没启动」、弹窗显示「aitd 没启动」**：运行 `scripts/aitd-service.sh status`。显示「没有安装开机自启」就按「从源码安装」第 4 步启动（用发布包的话打开 App 就行）；显示「服务：连不上」就看 `~/Library/Application Support/ai-translate/logs/launchd.log`
 - **「密钥不对」**：重新运行 `pbcopy < ~/Library/Application\ Support/ai-translate/api-key`，粘贴到设置页保存。命令行直接读这个文件，退出码 2 时先确认 `aitd` 在运行
-- **aitd 起不来，日志里说端口被占用**：8790 或 8791 被别的程序占了，常见是还开着 `npm run aitd` 或 `scripts/start-model.sh`，停掉它们再试
+- **aitd 起不来，日志里说端口被占用**：8790 或 8791 被别的程序占了，常见是还开着 `npm run aitd` 或 `scripts/start-model.sh`，停掉它们再试。用发布包时 App 会自动换到 8791 等空端口，插件的服务地址改成 App「设置 → 翻译服务」里显示的
 - **模型状态显示「出错」**：鼠标停在状态上看原因。常见是模型文件没下载（运行 `scripts/download-model.sh`）或没装 llama.cpp（`brew install llama.cpp`）
 - **`ait: command not found`**：`~/.local/bin` 不在 `PATH` 里，在 `~/.zshrc` 加一行 `export PATH="$HOME/.local/bin:$PATH"` 后新开终端
 - **升级 Node 后 aitd 或 ait 用不了**：重新运行 `scripts/aitd-service.sh install` 和 `scripts/install-cli.sh install`
+- **插件提示「打开 AI Translate 桌面应用」**：用的是发布包的话，本机翻译服务由 App 启动，App 关着时插件就连不上；打开 App 后插件会自己接着翻。从源码安装的照第一条处理
+- **发布包的 App 打不开，说无法验证开发者**：到「系统设置 → 隐私与安全性」，在下面找到 AI Translate 点「仍要打开」；macOS 15 起右键「打开」不再能绕过
 - **改了代码不生效**：插件和命令行要 `npm run build`，插件还要在 `chrome://extensions` 点重新加载；开机自启的 `aitd` 要用上面的命令重启（或在桌面应用里点「重启翻译服务」）；桌面应用要重新 `scripts/install-desktop.sh install`
 - **桌面应用菜单栏显示「aitd 没启动」**：同第一条，先确认 `aitd` 在运行
 - **按 `⌥D` 没反应**：先确认真的选中了文字（没选中时什么都不做）；再看设置「快捷键」页：`⌥D` 标红说明被别的 App 占了，换一个组合键；辅助功能显示没打开就点「打开系统设置」。还不行时可以按 `⌥A` 打开翻译窗口粘贴进去翻
@@ -227,6 +239,7 @@ ait status                                           # 看 aitd、模型、队�
 - `npm run check-page -- <网址> [--scroll] [--shot 截图.png]`：用真实模型翻译一个真实网页，输出出译文的耗时；`--scroll` 从头滚到尾列出漏翻的文字。脚本自己起一个临时 `aitd`，不碰你的缓存
 - `npm run desktop:test`：桌面应用的单测（Swift Testing，`apps/desktop` 里不依赖界面的 `AITranslateKit`）
 - `npm run desktop:build`：编译桌面应用、组装并签名到 `apps/desktop/build/AI Translate.app`（不安装）。核对界面时可以带调试参数启动它，把窗口存成图片：`open -n "apps/desktop/build/AI Translate.app" --args --translate-text 文本文件 --snapshot 截图.png`，另有 `--translate-file 文件 [--bilingual] [--auto-start]`、`--scroll source|result 比例`（截图前先滚动翻译窗口）、`--settings [general|shortcuts|glossary|service|models|about] [--full]`（`--full` 截设置右边的整页）、`--about`、`--card 文本文件 [--languages]`（在屏幕中间弹出划词卡片，可打开语言列表）、`--dark`；环境变量 `AIT_URL` 可改连别的 `aitd` 地址（只能是本机）。`--download-model 版本 目录 [--stop-after-mb N]` 用 App 的下载器把一个版本下到指定目录（不动 `models/`），下到 N MB 时取消，用来实测下载和断点续传；`--probe 记录文件` 是取词实测：每按一次 `⌥D`，两种取词方法各试一次，只记 App、成没成功、字数、耗时和错误码，不记文字内容；要先退出装好的 App，快捷键才归它
+- `scripts/package-release.sh`：打发布包 `release/AI-Translate-<版本>-macos-arm64.zip`（`release/` 不进仓库）：构建插件、命令行、`aitd` 单文件（`apps/server/build.mjs`）和桌面应用，把构建机 nvm 里的 Node 22、llama.cpp 官方 macOS arm64 发布包（固定版本 `b11669`，下载时校验 sha256，缓存在 `release/cache/`）放进 App，用本机自签名证书由内到外签名，再和「Chrome 插件」文件夹、使用说明、许可证、第三方声明、带每个文件 sha256 的清单一起打成 zip（约 47 MB）；带 `--no-zip` 只组装到 `release/AI-Translate-<版本>-macos-arm64/`、不打 zip，本地先试。版本号、构建号改 `apps/desktop/Info.plist`。发布包里的 App 也认 `AIT_HOME`、`AIT_URL`、`AIT_LLAMA_PORT`，可以用全新数据目录和别的端口实测，不碰正在用的那套（设了 `AIT_URL` 时从它的端口往后试，也不记用上的端口）
 - 图标：`PLAYWRIGHT_BROWSERS_PATH=0 node scripts/make-icons.mjs` 重新生成插件图标和桌面应用图标（白色「中→A」，底色 `#2852C8`）
 
 `qa` 和 `check-page` 直连模型服务、用 `api-key` 文件里的密钥，而 `aitd` 管的模型用一次性密钥，连不上，要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再 `npm run qa -- --endpoint http://127.0.0.1:8792` 或 `AIT_MODEL_URL=http://127.0.0.1:8792 npm run check-page -- <网址>`。

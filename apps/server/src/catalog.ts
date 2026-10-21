@@ -33,11 +33,19 @@ export function listModels(modelsDir: string): LocalModel[] {
     .sort((a, b) => a.size - b.size);
 }
 
-/** 启动时用哪个版本：环境变量 AIT_QUANT（固定，不能切换）> settings.json > Q8_0 */
-export function chooseQuant(envQuant: string | undefined, settingsFile: string): { quant: string; pinned: boolean } {
+/**
+ * 启动时用哪个版本：环境变量 AIT_QUANT（固定，不能切换）> settings.json > Q8_0。
+ * 给了 modelsDir 时，选中的版本没有文件就改用本机已有的（Q8_0 > Q4_K_M > 其余里最大的），
+ * 免得只下了别的版本还报「模型文件不存在」（Goal 9 发布包新手引导下的是 Q4_K_M）；被 AIT_QUANT 固定时不回退
+ */
+export function chooseQuant(envQuant: string | undefined, settingsFile: string, modelsDir?: string): { quant: string; pinned: boolean } {
   if (envQuant !== undefined && envQuant !== "") return { quant: envQuant, pinned: true };
   const saved = readSettings(settingsFile).quant;
-  return { quant: typeof saved === "string" && QUANT.test(saved) ? saved : DEFAULT_QUANT, pinned: false };
+  const quant = typeof saved === "string" && QUANT.test(saved) ? saved : DEFAULT_QUANT;
+  if (modelsDir === undefined || existsSync(modelFile(modelsDir, quant))) return { quant, pinned: false };
+  const local = listModels(modelsDir);
+  const fallback = ["Q8_0", "Q4_K_M"].find((q) => local.some((m) => m.quant === q)) ?? [...local].sort((a, b) => b.size - a.size)[0]?.quant;
+  return { quant: fallback ?? quant, pinned: false };
 }
 
 function readSettings(file: string): Record<string, unknown> {

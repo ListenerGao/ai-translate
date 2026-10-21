@@ -29,8 +29,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var openItem: NSMenuItem!
   /** 「模型」页的状态放在这里：关掉设置窗口也接着下载 */
   private lazy var models = ModelsModel(backend: client)
-  private lazy var settingsWindow = SettingsWindowController(client: client, hotKeys: hotKeys, models: models) { [weak self] target in
+  private lazy var settingsWindow = SettingsWindowController(
+    client: client, hotKeys: hotKeys, models: models,
+    restart: { [weak self] in
+      guard let self else { return (.notResponding, nil) }
+      let result = await self.supervisor.restartAndLoad()
+      return (result, await self.supervisor.problem)
+    }
+  ) { [weak self] target in
     self?.translateWindow.model.target = target
+  }
+  /** 发布包里的 App 自己带起 aitd（Goal 9）；开发装的 App 里没带，照旧连开机自启的 */
+  private lazy var supervisor = AitdSupervisor(client: client, remembers: ProcessInfo.processInfo.environment["AIT_URL"] == nil)
+  private lazy var onboarding = OnboardingWindowController(models: models) { [weak self] in
+    self?.settingsWindow.show(page: .models)
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -46,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       downloadForTest(quant: CommandLine.arguments[i + 1], into: URL(fileURLWithPath: CommandLine.arguments[i + 2]))
       return
     }
+    // 从「下载」里直接打开的：系统把 App 搬到了临时位置运行，登录项会记错，先请主人拖进「应用程序」
+    if AppLocation.isTranslocated(Bundle.main.bundlePath) {
+      alert("先把 AI Translate 拖进「应用程序」文件夹", "从「下载」等位置直接打开时，系统会把 App 放到一个临时位置运行，下次就找不到了。请在访达里把 AI Translate 拖进「应用程序」，再从那里打开。")
+      NSApp.terminate(nil)
+      return
+    }
     NSApp.mainMenu = buildMainMenu()
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.menu = buildMenu()
@@ -53,6 +71,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     hotKeys.registerAll()
     show(.checking)
     refresh()
+    // 没有 aitd 在跑就启动 App 里带的；能用了再看要不要弹新手引导（本机一个模型都没有）
+    Task {
+      await supervisor.ensureRunning()
+      refresh()
+      settingsWindow.refreshIfOpen()
+      if let problem = supervisor.problem { alert("翻译服务没能启动", problem) }
+      if !CommandLine.arguments.contains(where: { $0.hasPrefix("--") }), ModelSource.needsModel(try? await client.models()) { onboarding.show() }
+    }
     timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
       Task { @MainActor in self?.refresh() }
     }
@@ -62,6 +88,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     if args.contains("--about") {
       showAbout()
       if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count { snapshotAbout(to: args[i + 1]) }
+      return
+    }
+    if let i = args.firstIndex(of: "--onboarding") {
+      // --onboarding [done]：打开新手引导（截图核对用）
+      onboarding.show(phase: args.indices.contains(i + 1) && args[i + 1] == "done" ? .done : .intro)
+      if let j = args.firstIndex(of: "--snapshot"), j + 1 < args.count { onboarding.snapshot(to: args[j + 1]) }
       return
     }
     if let i = args.firstIndex(of: "--settings") {
@@ -196,12 +228,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
-  /** 关于窗口（AboutWindow.swift）：V0.1.0 · Build 1、Made by ListenerGao */
+  /** 关于窗口（AboutWindow.swift）：版本和 Build 号、Made by ListenerGao */
   @objc private func showAbout() {
     aboutWindow.show()
   }
 
   /** 点 Dock 图标：没有打开的窗口时打开翻译窗口 */
+  /** 退出 App 时停掉自己带起来的 aitd（它会先停模型）；开机自启的不管 */
+  func applicationWillTerminate(_ notification: Notification) {
+    supervisor.stop()
+  }
+
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
     if !hasVisibleWindows { translateWindow.show() }
     return true
@@ -361,7 +398,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   @objc private func restartService() {
     show(.checking)
     Task {
-      let result = await AitdService.restartAndLoad(client)
+      let result = await supervisor.restartAndLoad()
       refresh()
       switch result {
       case .loading:
@@ -373,7 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       case .notInstalled:
         alert("没有安装开机自启", ServiceState.startHint)
       case .notResponding:
-        alert("翻译服务重启后没有响应", "看 ~/Library/Application Support/ai-translate/logs/launchd.log")
+        alert("翻译服务重启后没有响应", supervisor.problem ?? AitdService.logHint)
       }
     }
   }

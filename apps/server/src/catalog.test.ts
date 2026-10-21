@@ -127,7 +127,11 @@ describe("Goal 8 CP1 aitd 模型接口", () => {
     await (await boot()).preload();
     const order: string[] = [];
     const before = translate("Before").then((t) => (order.push("before"), t));
-    await new Promise((r) => setTimeout(r, 100));
+    // 等这一段真的开始翻了（aitd 报「进行中 1」）再切换；只等固定时间的话，机器忙时它可能还没开始（2026-10-21 Goal 9 跑测试时碰到过一次）
+    for (let i = 0; i < 200; i++) {
+      if (((await call("/api/status")).data.queue as { active: number }).active >= 1) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
     const switched = call("/api/models/current", { method: "PUT", body: { quant: "Q4_K_M" } }).then((r) => (order.push("switched"), r));
     await new Promise((r) => setTimeout(r, 50));
     const during = translate("During").then((t) => (order.push("during"), t));
@@ -204,6 +208,25 @@ describe("Goal 8 CP1 启动时用哪个版本", () => {
     writeFileSync(settingsFile, JSON.stringify({ quant: "../x" }));
     assert.deepEqual(chooseQuant(undefined, settingsFile), { quant: "Q8_0", pinned: false });
     assert.deepEqual(listModels(join(home, "missing")), []);
+  });
+
+  test("12 选中的版本没有文件：改用本机已有的（Q8_0 > Q4_K_M > 其余里最大的）；被 AIT_QUANT 固定、一个都没有时不回退", () => {
+    const only = (names: [string, string][]) => {
+      rmSync(modelsDir, { recursive: true, force: true });
+      mkdirSync(modelsDir, { recursive: true });
+      for (const [quant, text] of names) writeFileSync(modelFile(modelsDir, quant), text);
+    };
+    only([["Q4_K_M", "x"], ["Q6_K", "xxxx"]]);
+    assert.deepEqual(chooseQuant(undefined, settingsFile, modelsDir), { quant: "Q4_K_M", pinned: false });
+    writeFileSync(settingsFile, JSON.stringify({ quant: "Q6_K" }));
+    assert.deepEqual(chooseQuant(undefined, settingsFile, modelsDir), { quant: "Q6_K", pinned: false }, "选中的有文件就用它");
+    writeFileSync(settingsFile, JSON.stringify({ quant: "Q5_K_M" }));
+    assert.deepEqual(chooseQuant(undefined, settingsFile, modelsDir), { quant: "Q4_K_M", pinned: false });
+    only([["Q3_K_S", "xx"], ["Q6_K", "xxxx"]]);
+    assert.deepEqual(chooseQuant(undefined, settingsFile, modelsDir), { quant: "Q6_K", pinned: false }, "没有 Q8_0、Q4_K_M 时用最大的");
+    assert.deepEqual(chooseQuant("Q8_0", settingsFile, modelsDir), { quant: "Q8_0", pinned: true }, "固定时不回退");
+    only([]);
+    assert.deepEqual(chooseQuant(undefined, settingsFile, modelsDir), { quant: "Q5_K_M", pinned: false }, "一个都没有：照选中的，启动时报文件不存在");
   });
 
   test("11 重启 aitd 后仍用切换后的版本：真的启动 aitd（main.ts），读 settings.json", async () => {

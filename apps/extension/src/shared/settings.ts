@@ -50,14 +50,6 @@ export async function flipDisplayMode(): Promise<DisplayMode> {
   return next;
 }
 
-/** 第一阶段插件直连 llama-server，默认地址是 8791；改连 aitd 后默认 8790，存着旧默认值的自动换成新的 */
-const LEGACY_ENDPOINT = "http://127.0.0.1:8791";
-
-export async function migrateSettings(): Promise<void> {
-  const { endpoint } = await chrome.storage.local.get("endpoint");
-  if (endpoint === LEGACY_ENDPOINT) await chrome.storage.local.set({ endpoint: DEFAULT_ENDPOINT });
-}
-
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   await chrome.storage.local.set(patch);
 }

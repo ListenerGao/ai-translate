@@ -27,7 +27,12 @@ public enum ServiceState: Equatable, Sendable {
   }
 
   /** 启动 aitd 的方法，没启动时提示 */
-  public static let startHint = "在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动"
+  /** aitd 没启动时怎么办：发布包里的 App 自己带 aitd，重启它就行；开发装的 App 要在项目目录启动 */
+  public static var startHint: String {
+    EmbeddedRuntime.current != nil
+      ? "点菜单栏「重启翻译服务」；还不行就退出 AI Translate 再打开"
+      : "在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动"
+  }
 
   public var title: String {
     switch self {

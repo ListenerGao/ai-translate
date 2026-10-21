@@ -1,6 +1,7 @@
 // 连本机翻译服务 aitd：和插件、命令行用同一个地址和密钥文件。
 // 只连本机地址（127.0.0.1、localhost），不是就不发送；密钥只从 api-key 文件读，不另存。
 import Foundation
+import os
 
 public enum AitdError: Error, Equatable, Sendable {
   /** 服务地址不是本机 */
@@ -52,26 +53,42 @@ public struct AitdClient: Sendable {
   /** App 认的 aitd 接口版本，和 core 的 AITD_API 对应 */
   public static let supportedAPI = 1
   public static var defaultKeyFile: URL {
-    FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support/ai-translate/api-key")
+    AitHome.directory.appending(path: "api-key")
   }
 
-  public let endpoint: URL
+  /** 地址放在共享的锁里：App 换了端口（8790 被占时），这个 client 的所有副本都跟着改连新端口 */
+  private let address: OSAllocatedUnfairLock<URL>
+  public var endpoint: URL { address.withLock { $0 } }
   public let keyFile: URL
   let session: URLSession
   /** 健康检查、状态这类短请求的超时 */
   let shortTimeout: TimeInterval
 
   public init(endpoint: URL = defaultEndpoint, keyFile: URL = defaultKeyFile, session: URLSession = .shared, shortTimeout: TimeInterval = 2) {
-    self.endpoint = endpoint
+    self.address = OSAllocatedUnfairLock(initialState: endpoint)
     self.keyFile = keyFile
     self.session = session
     self.shortTimeout = shortTimeout
+  }
+
+  /** 改连本机另一个端口的 aitd（App 带起的 aitd 换了端口时用） */
+  public func use(port: Int) {
+    address.withLock { url in
+      var parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
+      parts?.port = port
+      if let changed = parts?.url { url = changed }
+    }
   }
 
   /** 只认 http://127.0.0.1 和 http://localhost，和插件的检查一致 */
   public static func isLocal(_ url: URL) -> Bool {
     guard url.scheme == "http", let host = url.host()?.lowercased() else { return false }
     return host == "127.0.0.1" || host == "localhost"
+  }
+
+  /** 「设置 → 翻译服务」的「复制密钥」用：主人点按钮时才读，复制进剪贴板给插件设置用，App 不另存 */
+  public func apiKey() throws -> String {
+    try readKey()
   }
 
   func readKey() throws -> String {

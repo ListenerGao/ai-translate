@@ -13,7 +13,7 @@ import {
   type TabCommand,
   type TabStatus,
 } from "../shared/messages.ts";
-import { flipDisplayMode, loadSettings, migrateSettings, type Settings } from "../shared/settings.ts";
+import { flipDisplayMode, loadSettings, type Settings } from "../shared/settings.ts";
 
 let settingsMemo: Promise<Settings> | null = null;
 chrome.storage.onChanged.addListener((_changes, area) => {
@@ -24,8 +24,9 @@ const getSettings = () => (settingsMemo ??= loadSettings());
 // Chrome 对同一地址最多同时开 6 个连接：一次把几十段都发给 aitd 会在浏览器里排队、打乱视口优先级，所以只发轮到的
 const scheduler = new Scheduler(getModelProfile(DEFAULT_MODEL_ID).parallel);
 
-// 旧版的默认地址换成 aitd 的；插件里旧的术语表搬到 aitd（aitd 没启动就下次再搬）
-void migrateSettings().then(() => migrateGlossary());
+// 插件里旧的术语表搬到 aitd（aitd 没启动就下次再搬）。旧版默认地址 8791 的迁移已去掉：
+// 8790 被占时桌面应用会把 aitd 换到 8791 等端口，主人填的 8791 不能再被改回 8790（2026-10-21）
+void migrateGlossary();
 
 interface Outcome {
   text: string;

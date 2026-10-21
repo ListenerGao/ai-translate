@@ -30,3 +30,6 @@ api-key
 
 # 任务临时文件，正式流程不依赖其中内容
 .tmp/
+
+# 发布包（scripts/package-release.sh 产出）
+release/

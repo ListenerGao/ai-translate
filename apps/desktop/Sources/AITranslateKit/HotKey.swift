@@ -136,9 +136,9 @@ public protocol HotKeyRegistrar: AnyObject {
 @MainActor
 @Observable
 public final class HotKeyModel {
-  public static let invalidMessage = "要带 ⌃ 或 ⌥：只用 ⌘ 会和各个 App 的菜单快捷键冲突"
+  public static let invalidMessage = "必须包含 ⌃ 或 ⌥：单用 ⌘ 会与各 App 的菜单快捷键冲突"
   public static let systemMessage = "和系统快捷键重复了：换一个，或者先在「系统设置 → 键盘 → 键盘快捷键」里关掉那个"
-  public static let occupiedMessage = "被别的 App 占用了，换一个"
+  public static let occupiedMessage = "快捷键被占用，换一个试试"
 
   /** 没有的是清空了 */
   public private(set) var combos: [HotKeyAction: HotKeyCombo] = [:]

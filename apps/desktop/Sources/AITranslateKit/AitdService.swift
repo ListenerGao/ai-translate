@@ -21,6 +21,13 @@ public enum AitdService {
     return run(["kickstart", "-k", target()]) == 0
   }
 
+  /** 重启后没响应时去哪看原因：App 带起来的 aitd 写 aitd.log，开机自启的另有 launchd.log */
+  public static var logHint: String {
+    EmbeddedRuntime.current != nil
+      ? "看 ~/Library/Application Support/ai-translate/logs/aitd.log"
+      : "看 ~/Library/Application Support/ai-translate/logs/launchd.log"
+  }
+
   public enum RestartResult: Sendable, Equatable {
     /** 已重启，模型正在加载 */
     case loading

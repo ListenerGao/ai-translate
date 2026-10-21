@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # 桌面应用 AI Translate：编译、组装 .app、用本机自签名证书签名、安装到 ~/Applications。
-# 用法：scripts/install-desktop.sh build | install | uninstall
+# 用法：scripts/install-desktop.sh build | install | uninstall | sign <路径>…
 #   build      编译并组装到 apps/desktop/build/AI Translate.app（不安装）
 #   install    build 后装到 ~/Applications/AI Translate.app 并启动（已装的先退出再替换）
 #   uninstall  退出并删除 ~/Applications/AI Translate.app
+#   sign       用同一张证书给指定的文件或 App 签名（发布包脚本 scripts/package-release.sh 用：先签 App 里的 Node、llama-server，再签 App）
 # 签名证书放在单独的钥匙串文件 $AIT_HOME/signing/ 里，第一次 build 时自动生成（主人 2026-10-20 授权），登录钥匙串不动。
 # 身份固定，更新 App 后辅助功能授权仍然有效。只管自己装的 App：同名但不是本项目的就不动它。
 set -euo pipefail
@@ -150,8 +151,12 @@ case "${1:-}" in
   build) build ;;
   install) install ;;
   uninstall) uninstall ;;
+  sign)
+    shift
+    for path in "$@"; do sign "$path"; done
+    ;;
   *)
-    echo "用法：scripts/install-desktop.sh build | install | uninstall" >&2
+    echo "用法：scripts/install-desktop.sh build | install | uninstall | sign <路径>…" >&2
     exit 2
     ;;
 esac

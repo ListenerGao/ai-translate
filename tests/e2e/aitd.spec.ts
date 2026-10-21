@@ -29,6 +29,7 @@ test("2 aitd 没启动：整页提示「本机翻译服务没启动」；启动 
   await page.goto(`${site}/long-article.html`);
   await toggle(background, page);
   await expect.poll(() => banner(page)).toContain("本机翻译服务没启动");
+  expect(await banner(page)).toContain("打开 AI Translate 桌面应用");
   expect(await banner(page)).toContain("scripts/aitd-service.sh install");
   expect(mock.requests).toHaveLength(0);
 

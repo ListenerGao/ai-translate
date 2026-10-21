@@ -82,7 +82,7 @@ async function renderStatus(): Promise<void> {
   };
   if (!checkLocalEndpoint(settings.endpoint).ok) return show("bad", "服务地址不对");
   const api = await aitdHealth(settings.endpoint);
-  if (api === null) return show("bad", "aitd 没启动", "在项目目录运行 scripts/aitd-service.sh install 设为开机自启，或 npm run aitd 前台启动");
+  if (api === null) return show("bad", "aitd 没启动", "打开 AI Translate 桌面应用就会启动它（已经开着的话，在它的「设置 → 翻译服务」核对服务地址）；从源码安装的，在项目目录运行 scripts/aitd-service.sh install 或 npm run aitd");
   if (api !== AITD_API) return show("bad", "版本对不上", "插件和 aitd 更新到同一版本");
   if (settings.apiKey.trim() === "") return show("warn", "还没填密钥");
   try {

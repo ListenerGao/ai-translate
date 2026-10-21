@@ -25,7 +25,15 @@ public enum ModelSource {
 
   /** 模型文件放在哪：和 aitd、scripts/download-model.sh 同一个目录 */
   public static var modelsDirectory: URL {
-    FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support/ai-translate/models")
+    AitHome.directory.appending(path: "models")
+  }
+
+  /** 新手引导推荐下的版本（主人 2026-10-21 定）：1.3 GB，盲评和 Q8_0 打平、快约两成 */
+  public static let recommendedQuant = "Q4_K_M"
+
+  /** 本机一个模型都没有：要弹新手引导（连不上 aitd 时不知道，不弹） */
+  public static func needsModel(_ local: LocalModels?) -> Bool {
+    local.map { $0.models.isEmpty } ?? false
   }
 
   /** 文件列表：GET <地址>/api/models/<仓库>/tree/main */

@@ -51,6 +51,15 @@ struct SettingsView: View {
   let navigation: SettingsNavigation
   let targetChanged: (String) -> Void
   let restartService: () -> Void
+  /** App 连的 aitd 地址（8790 被占时 App 会换端口）：插件设置里的「本机翻译服务地址」要填同一个 */
+  let endpoint: () -> String
+  /** 读 api-key 复制进剪贴板，成功返回 true */
+  let copyKey: () -> Bool
+  /** 安装命令行工具（只有发布包里的 App 有），返回给主人看的结果 */
+  let installCommandLine: (() -> String)?
+  /** 刚点过的复制按钮（显示「已复制」2 秒） */
+  @State private var copied: String?
+  @State private var commandLineMessage: String?
   @State private var target = Preferences.target
   @State private var trusted = SelectionCapture.isTrusted
 
@@ -146,11 +155,20 @@ struct SettingsView: View {
           .disabled(!LoginItem.isInstalled)
       }
     }
+    if let installCommandLine {
+      SettingsSection("命令行") {
+        SettingsRow("命令行工具 ait", caption: commandLineMessage ?? "在终端里用 ait 翻译文字、Markdown 和字幕；装到 ~/.local/bin/ait，用 App 里带的运行环境") {
+          Button("安装") { commandLineMessage = installCommandLine() }.buttonStyle(SoftButtonStyle())
+        }
+      }
+    }
   }
 
   private var loginCaption: (text: String, color: Color)? {
     if let error = login.error { return (error, .red) }
-    if !LoginItem.isInstalled { return ("装到「应用程序」文件夹后才能设置：在项目目录运行 scripts/install-desktop.sh install", .secondary) }
+    if !LoginItem.isInstalled {
+      return (EmbeddedRuntime.current != nil ? "把 AI Translate 拖进「应用程序」文件夹、从那里打开后才能设置" : "装到「应用程序」文件夹后才能设置：在项目目录运行 scripts/install-desktop.sh install", .secondary)
+    }
     if login.needsApproval { return ("还要在「系统设置 → 通用 → 登录项」里允许", .orange) }
     return nil
   }
@@ -158,9 +176,9 @@ struct SettingsView: View {
   // MARK: 快捷键
 
   @ViewBuilder private var shortcuts: some View {
-    SettingsSection("全局快捷键", footer: "点组合键后按新的组合键，Esc 取消；鼠标移到组合键上点 × 清空，清空后不再生效。要带 ⌃ 或 ⌥。") {
+    SettingsSection("全局快捷键", footer: "点组合键后按下新的组合键，按 Esc 取消；鼠标悬停在组合键上点 × 清空，清空后不再生效。需包含 ⌃ 或 ⌥。") {
       ForEach(HotKeyAction.allCases, id: \.self) { action in
-        SettingsRow(action.title, caption: recorder.message(for: action) ?? recorder.hotKeys.problems[action], captionColor: .red) {
+        SettingsRow(action.title, warning: recorder.message(for: action) ?? recorder.hotKeys.problems[action]) {
           HStack(spacing: 10) {
             ShortcutField(action: action, recorder: recorder)
             Button("恢复默认") { recorder.reset(action) }
@@ -171,7 +189,7 @@ struct SettingsView: View {
       }
     }
     SettingsSection("权限") {
-      SettingsRow("辅助功能", caption: "划词翻译要读取别的 App 里选中的文字：只在按快捷键时读一次，只发给本机的翻译服务，不记录。打开翻译窗口不需要这个权限。") {
+      SettingsRow("辅助功能", caption: "划词翻译需读取其他 App 中选中的文字，仅在按下快捷键时读取一次，且只传给本机翻译服务，不记录。打开翻译窗口不需要此权限。") {
         if trusted {
           Label("已打开", systemImage: "checkmark.circle.fill").font(.system(size: 13)).foregroundStyle(.green)
         } else {
@@ -269,6 +287,33 @@ struct SettingsView: View {
       .padding(.vertical, 14)
       .overlay(alignment: .top) { Divider() }
     }
+    SettingsSection("Chrome 插件连接", footer: "在插件的设置页填这两项：「本机翻译服务地址」和上面一样就不用改（插件默认用 8790 端口；8790 被别的程序占着时，App 会自动换一个端口）；「密钥」粘贴这里复制的密钥。密钥只给本机的插件用，不要发给别人。") {
+      SettingsRow("本机翻译服务地址") {
+        HStack(spacing: 12) {
+          value(endpoint())
+          copyButton("复制地址", id: "endpoint") {
+            NSPasteboard.general.clearContents()
+            return NSPasteboard.general.setString(endpoint(), forType: .string)
+          }
+        }
+      }
+      SettingsRow("密钥", caption: "存在本机，这里不显示") {
+        copyButton("复制密钥", id: "key", action: copyKey)
+      }
+    }
+  }
+
+  /** 复制按钮：成功后显示「已复制」2 秒 */
+  private func copyButton(_ title: String, id: String, action: @escaping () -> Bool) -> some View {
+    Button(copied == id ? "已复制" : title) {
+      guard action() else { return }
+      copied = id
+      Task {
+        try? await Task.sleep(for: .seconds(2))
+        if copied == id { copied = nil }
+      }
+    }
+    .buttonStyle(SoftButtonStyle(width: 88))
   }
 
   private func value(_ text: String) -> some View {
@@ -350,19 +395,35 @@ struct SettingsRow<Control: View>: View {
   let title: String
   var caption: String?
   var captionColor: Color = .secondary
+  /** 红色感叹号提示（快捷键被占用这类）：放在标题右边，放不下再放到标题下面 */
+  var warning: String?
   @ViewBuilder var control: Control
 
-  init(_ title: String, caption: String? = nil, captionColor: Color = .secondary, @ViewBuilder control: () -> Control) {
+  init(_ title: String, caption: String? = nil, captionColor: Color = .secondary, warning: String? = nil, @ViewBuilder control: () -> Control) {
     self.title = title
     self.caption = caption
     self.captionColor = captionColor
+    self.warning = warning
     self.control = control()
   }
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
       VStack(alignment: .leading, spacing: 4) {
-        Text(title).font(.system(size: 14))
+        if let warning {
+          ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+              Text(title).font(.system(size: 14))
+              warningLabel(warning).fixedSize()
+            }
+            VStack(alignment: .leading, spacing: 4) {
+              Text(title).font(.system(size: 14))
+              warningLabel(warning)
+            }
+          }
+        } else {
+          Text(title).font(.system(size: 14))
+        }
         if let caption {
           Text(caption).font(.system(size: 12)).foregroundStyle(captionColor).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
         }
@@ -374,6 +435,15 @@ struct SettingsRow<Control: View>: View {
     .padding(.vertical, 12)
     .frame(minHeight: 52)
     .overlay(alignment: .top) { Divider() }
+  }
+
+  private func warningLabel(_ text: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 4) {
+      Image(systemName: "exclamationmark.circle.fill")
+      Text(text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+    }
+    .font(.system(size: 12))
+    .foregroundStyle(.red)
   }
 }
 
@@ -412,8 +482,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
   private var window: NSWindow?
   private let targetChanged: (String) -> Void
 
-  init(client: AitdClient, hotKeys: HotKeyModel, models: ModelsModel, targetChanged: @escaping (String) -> Void) {
+  /** 「重启翻译服务」：交给 AppDelegate 的 AitdSupervisor（App 带起来的重启子进程，开机自启的 kickstart） */
+  private let restart: () async -> (AitdService.RestartResult, String?)
+
+  init(client: AitdClient, hotKeys: HotKeyModel, models: ModelsModel, restart: @escaping () async -> (AitdService.RestartResult, String?), targetChanged: @escaping (String) -> Void) {
     self.client = client
+    self.restart = restart
     self.models = models
     model = SettingsModel(backend: client)
     recorder = HotKeyRecorder(hotKeys: hotKeys)
@@ -428,6 +502,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     Task { await model.load() }
     NSApp.activate()
     window.makeKeyAndOrderFront(nil)
+  }
+
+  /** App 打开时挑好端口、带起 aitd 后：设置开着就刷新一次状态和地址 */
+  func refreshIfOpen() {
+    guard window?.isVisible == true else { return }
+    Task { await model.refreshService() }
   }
 
   private func makeWindow() -> NSWindow {
@@ -451,7 +531,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
       recorder: recorder,
       navigation: navigation,
       targetChanged: targetChanged,
-      restartService: { [weak self] in self?.restartService() }
+      restartService: { [weak self] in self?.restartService() },
+      endpoint: { [client] in client.endpoint.absoluteString },
+      copyKey: { [weak self] in self?.copyKey() ?? false },
+      installCommandLine: EmbeddedRuntime.current.map { runtime in { Self.installCommandLine(runtime) } }
     ))
     window.isReleasedWhenClosed = false
     window.delegate = self
@@ -490,10 +573,34 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
   }
 
+  /** 「复制密钥」：主人点按钮时读 api-key，放进剪贴板给插件设置用；App 不另存 */
+  private func copyKey() -> Bool {
+    guard let key = try? client.apiKey() else { return false }
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(key, forType: .string)
+    return true
+  }
+
+  /** 「安装命令行工具」：写 ~/.local/bin/ait；那里已经有别人的 ait 就不动 */
+  private static func installCommandLine(_ runtime: EmbeddedRuntime) -> String {
+    do {
+      switch try CommandLineTool.install(runtime: runtime) {
+      case .installed(onPath: true):
+        return "已安装：新开一个终端运行 ait status 试试"
+      case .installed(onPath: false):
+        return "已安装到 ~/.local/bin/ait，但它不在 PATH 里：在 ~/.zshrc 加一行 export PATH=\"$HOME/.local/bin:$PATH\"，新开终端后运行 ait status"
+      case .occupied:
+        return "~/.local/bin/ait 已经有一个不是 AI Translate 装的命令，没有动它"
+      }
+    } catch {
+      return "没装上：\(error.localizedDescription)"
+    }
+  }
+
   /** 重启翻译服务并马上加载模型；加载要几秒，期间每秒刷新一次状态，直到回到「运行中」 */
   private func restartService() {
     Task {
-      let result = await AitdService.restartAndLoad(client)
+      let (result, problem) = await restart()
       await model.refreshService()
       switch result {
       case .loading:
@@ -505,7 +612,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
       case .notInstalled, .notResponding:
         let alert = NSAlert()
         alert.messageText = result == .notInstalled ? "没有安装开机自启" : "翻译服务重启后没有响应"
-        alert.informativeText = result == .notInstalled ? ServiceState.startHint : "看 ~/Library/Application Support/ai-translate/logs/launchd.log"
+        alert.informativeText = result == .notInstalled ? ServiceState.startHint : (problem ?? AitdService.logHint)
         alert.runModal()
       }
     }
