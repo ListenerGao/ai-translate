@@ -49,13 +49,14 @@ goals/              Goal 施工清单
 - `npm run qa`：译文回归检查（要模型服务在运行）；换模型、量化版本、提示词或内置术语后必须跑，出现新问题退出码为 1
 - `npm run aitd`：前台启动 aitd（端口 `AIT_PORT`，默认 8790），用到时自动启动模型（`AIT_LLAMA_PORT` 默认 8791，和 `start-model.sh` 冲突）；`AIT_MODEL_URL` 改连已在运行的模型服务
 - 主人装了开机自启：aitd 一直占着 8790，模型常驻 8791（一次性密钥，`api-key` 连不上）。前台调试 aitd 要换端口；改了 `apps/server` 或 `packages/core` 后运行 `launchctl kickstart -k gui/$(id -u)/com.listenergao.ai-translate.aitd` 才生效
-- `npm run desktop:test`：桌面应用单测（Swift Testing）；`npm run desktop:build` 编译、签名到 `apps/desktop/build/`；`scripts/install-desktop.sh install` 装到 `~/Applications` 并启动（改了 `apps/desktop` 后重新 install 才生效）。我这边看不到屏幕：界面用调试参数 `--snapshot` 等截图核对（见 README「开发」），交互和观感请主人试用
-- `scripts/package-release.sh`：打发布包到 `release/`（见 README「开发」）；实测发布包里的 App 用 `AIT_HOME`、`AIT_URL`、`AIT_LLAMA_PORT` 换全新数据目录和端口（设了 `AIT_URL` 才不会把端口记进主人的 App 设置），不碰主人在用的 aitd 和 `~/Applications` 里的 App
+- `npm run desktop:test`：桌面应用单测（Swift Testing）；`npm run desktop:build` 编译、签名到 `apps/desktop/build/`；`scripts/install-desktop.sh install` 装到 `~/Applications` 并启动（改了 `apps/desktop` 后重新 install 才生效）。我这边看不到屏幕：界面用调试参数 `--snapshot` 等截图核对（见 `docs/development.md`「开发」），交互和观感请主人试用
+- `scripts/package-release.sh`：打发布包到 `release/`（见 `docs/development.md`「开发」）；实测发布包里的 App 用 `AIT_HOME`、`AIT_URL`、`AIT_LLAMA_PORT` 换全新数据目录和端口（设了 `AIT_URL` 才不会把端口记进主人的 App 设置），不碰主人在用的 aitd 和 `~/Applications` 里的 App
 - 真实模型：`scripts/download-model.sh`、`scripts/start-model.sh`；`qa`、`check-page` 要另开一个模型服务：`AIT_PORT=8792 scripts/start-model.sh`，再用 `--endpoint` / `AIT_MODEL_URL` 指过去；真实网页检查：`npm run check-page -- <网址> [--scroll] [--shot 截图.png]`
 
 ## 文档入口
 
-- 项目说明与使用：`README.md`
+- 项目说明与使用（面向普通用户）：`README.md`；README 配图在 `docs/images/`
+- 技术说明（从源码安装、功能细节、命令行、aitd 配置、开发与打包）：`docs/development.md`
 - 进度、待办、阻塞与决策：`ROADMAP.md`
 - 架构：`docs/architecture-v2.html`（当前）；`docs/architecture-v1.html`（第一版，只读）
 - 施工清单：`goals/`

@@ -38,7 +38,7 @@ node_path() {
     # shellcheck disable=SC1090
     [[ -s "$script" ]] && source "$script" >/dev/null 2>&1 && break
   done
-  command -v nvm >/dev/null 2>&1 || { echo "找不到 nvm：先安装 nvm（见 README「从源码安装」），再运行 nvm install" >&2; exit 1; }
+  command -v nvm >/dev/null 2>&1 || { echo "找不到 nvm：先安装 nvm（见 docs/development.md「从源码安装」），再运行 nvm install" >&2; exit 1; }
   nvm which "$(cat "$ROOT/.nvmrc")" 2>/dev/null | tail -1
   set -u
 }
