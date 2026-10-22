@@ -14,14 +14,14 @@ enum AccessibilityPrompt {
   static func show(selection: String, window: String?) {
     NSApp.activate()
     let alert = NSAlert()
-    alert.messageText = "划词翻译要先打开「辅助功能」权限"
-    let open = window.map { "按 \($0)" } ?? "点菜单栏图标里的「打开翻译窗口」"
+    alert.messageText = "划词翻译需先开启「辅助功能」权限"
+    let open = window.map { "按 \($0) 打开窗口" } ?? "点菜单栏图标里的「打开翻译窗口」"
     alert.informativeText = """
-      AI Translate 要读取别的 App 里选中的文字：只在按 \(selection) 时读一次，只发给本机的翻译服务，不记录。
+      AI Translate 需要读取其他 App 中选中的文字：仅在按下 \(selection) 时读取一次，只发送给本机翻译服务，不做任何记录。
 
-      在「系统设置 → 隐私与安全性 → 辅助功能」里打开 AI Translate，打开后不用重启。
+      请在「系统设置 → 隐私与安全性 → 辅助功能」中开启 AI Translate，开启后无需重启。
 
-      不想授权也可以\(open)，把文字粘贴进去翻。
+      如不想授权，也可\(open)，粘贴文字翻译。
       """
     alert.addButton(withTitle: "打开系统设置")
     alert.addButton(withTitle: "取消")

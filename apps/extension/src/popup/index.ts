@@ -149,7 +149,7 @@ async function init(): Promise<void> {
   const status: TabStatus | null =
     tab?.id === undefined ? null : await chrome.tabs.sendMessage(tab.id, { type: "status" } satisfies TabCommand).catch(() => null);
   if (tab?.id === undefined || tab.url === undefined || status === null) {
-    $("detect").textContent = "这个页面不能翻译：浏览器内置页面、应用商店等不允许插件运行；刚安装插件时，已打开的页面刷新后才能用";
+    $("detect").textContent = "此页面无法翻译：浏览器内置页面、应用商店等不允许插件运行；插件刚安装完成后，已打开的页面需刷新后才能使用";
     return;
   }
   tabId = tab.id;

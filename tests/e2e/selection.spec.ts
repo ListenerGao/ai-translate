@@ -243,7 +243,7 @@ test.describe("划词翻译", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`【译】${text}`);
   });
 
-  test("14 内置术语：划词含 mockup 时带上内置术语，自己写了同名术语以自己的为准；设置页列出内置术语", async ({ context, aitd, extensionId, mock, site }) => {
+  test("14 内置术语：划词含 mockup 时带上内置术语，自己写了同名术语以自己的为准", async ({ context, aitd, mock, site }) => {
     const page = await context.newPage();
     await page.goto(`${site}/selection.html`);
     await page.evaluate(() => {
@@ -263,10 +263,5 @@ test.describe("划词翻译", () => {
     await expect.poll(() => mock.requests.length).toBe(2);
     expect(mock.requests[1]!.prompt).toContain("mockup→原型图");
     expect(mock.requests[1]!.prompt).not.toContain("设计稿");
-
-    const options = await context.newPage();
-    await options.goto(`chrome-extension://${extensionId}/options.html`);
-    await expect(options.locator("#builtin-glossary")).toContainText("mockup=设计稿");
-    await expect(options.locator("#builtin-glossary")).toContainText("single source of truth=单一事实来源");
   });
 });

@@ -116,7 +116,7 @@ struct FileJobCard: View {
       Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(.green)
       VStack(alignment: .leading, spacing: 3) {
         Text(empty ? "没有要翻译的文字" : "翻译完成").font(.system(size: 15, weight: .semibold))
-        Text(empty ? "只有代码块、空字幕等，原样写出" : failed.isEmpty ? "译文已写好" : "\(failed.count) 段没翻成，保留了原文")
+        Text(empty ? "只有代码块、空字幕等，原样写出" : failed.isEmpty ? "译文已写好" : "\(failed.count) 段未翻译，已保留原文")
           .font(.system(size: 12))
           .foregroundStyle(failed.isEmpty ? Color.secondary : Color.orange)
       }
@@ -146,7 +146,7 @@ struct FileJobCard: View {
     HStack(alignment: .top, spacing: 12) {
       Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 26)).foregroundStyle(.red)
       VStack(alignment: .leading, spacing: 4) {
-        Text("没翻成").font(.system(size: 15, weight: .semibold))
+        Text("未翻译").font(.system(size: 15, weight: .semibold))
         Text(error.message).font(.system(size: 12)).foregroundStyle(.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
       }
     }

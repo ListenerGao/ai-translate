@@ -24,7 +24,7 @@
   .lead { margin: 4px 0 0; color: var(--muted); }
   form { display: grid; gap: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
   .field { display: grid; gap: 6px; }
-  label, legend { font-weight: 600; }
+  label, legend, .title { font-weight: 600; }
   fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
   .radios { display: flex; gap: 20px; flex-wrap: wrap; font-weight: 400; }
   .radios label, label.check { font-weight: 400; display: flex; gap: 6px; align-items: center; }
@@ -36,8 +36,11 @@
   input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .row { display: flex; gap: 8px; }
   .row input { flex: 1; min-width: 0; }
+  /* 网格列可以比里面的长命令窄（否则整页被撑宽） */
+  main, form, .field, fieldset { grid-template-columns: minmax(0, 1fr); }
   .hint { margin: 0; color: var(--muted); font-size: 12.5px; }
-  .hint code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; word-break: break-all; }
+  /* 命令和地址不从中间断开：放不下就整条换到下一行，比窗口还宽时左右滚动 */
+  .hint code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; display: inline-block; max-width: 100%; white-space: nowrap; overflow-x: auto; vertical-align: bottom; }
   .error { margin: 0; color: var(--warn); font-size: 12.5px; }
   .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   button { font: inherit; border-radius: 8px; padding: 8px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
@@ -58,7 +61,7 @@
     <div class="field">
       <label for="endpoint">本机翻译服务地址</label>
       <input id="endpoint" type="text" autocomplete="off" spellcheck="false">
-      <p class="hint">只能填本机地址（127.0.0.1 或 localhost）。默认 <code>http://127.0.0.1:8790</code>。在项目目录运行 <code>scripts/aitd-service.sh install</code> 把本机翻译服务 aitd 设为开机自启（登录后自动加载模型），或运行 <code>npm run aitd</code> 前台启动。</p>
+      <p class="hint">使用桌面应用时，在 App 的「设置 → 翻译服务」中复制地址。<br>仅支持本机地址（127.0.0.1 或 localhost），默认为 <code>http://127.0.0.1:8790</code>。<br>如需将本机翻译服务 aitd 设为开机自启（登录后自动加载模型），可在项目目录运行 <code>scripts/aitd-service.sh install</code>；也可运行 <code>npm run aitd</code> 以前台方式启动。</p>
       <p class="error" id="endpoint-error" hidden></p>
     </div>
 
@@ -68,7 +71,7 @@
         <input id="api-key" type="password" autocomplete="off" spellcheck="false">
         <button id="toggle-key" type="button">显示</button>
       </div>
-      <p class="hint">首次启动 aitd 时生成。复制到剪贴板：<code>pbcopy &lt; ~/Library/Application\ Support/ai-translate/api-key</code></p>
+      <p class="hint">使用桌面应用时，在 App 的「设置 → 翻译服务」中点「复制密钥」。<br>该密钥在首次启动 aitd 时生成。可复制到剪贴板：<br><code>pbcopy &lt; ~/Library/Application\ Support/ai-translate/api-key</code></p>
     </div>
 
     <div class="field">
@@ -93,12 +96,8 @@
     </fieldset>
 
     <div class="field">
-      <label for="glossary">术语表</label>
-      <textarea id="glossary" spellcheck="false" placeholder="例如：liveness probe=存活探针"></textarea>
-      <p class="hint">一行一条 <code>原文=译文</code>，<code>#</code> 开头的行是注释。术语表存在本机翻译服务 aitd 里，插件和命令行共用；只有段落里出现的术语才会发给模型。</p>
-      <p class="error" id="glossary-state" hidden></p>
-      <p class="hint" id="builtin-glossary"></p>
-      <ul class="error" id="glossary-errors" hidden></ul>
+      <span class="title">术语表</span>
+      <p class="hint" id="glossary-hint">术语表由插件、命令行和桌面应用共用，请在桌面应用的「设置 → 术语表」中查看和编辑。<br>未安装桌面应用时，可直接编辑 <code>~/Library/Application Support/ai-translate/glossary.txt</code>，重启 aitd 后生效。</p>
     </div>
 
     <fieldset>

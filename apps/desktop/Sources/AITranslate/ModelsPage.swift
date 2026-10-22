@@ -10,7 +10,7 @@ struct ModelsPage: View {
   @State private var endpointDraft = ""
 
   var body: some View {
-    SettingsSection("本机的版本", footer: "切换时等正在翻的段落翻完再换，一般几秒；插件、命令行和桌面应用一起换，重启后保留。") {
+    SettingsSection("本机的版本", footer: "切换时等当前段落翻译完，一般只需几秒；插件、命令行和桌面应用会同步切换，重启后依然保留。") {
       if let problem = model.serviceProblem {
         Callout(systemImage: "exclamationmark.triangle.fill", color: .red, title: "连不上翻译服务，切换、删除暂时用不了", detail: problem)
           .padding(.bottom, 12)
@@ -22,11 +22,11 @@ struct ModelsPage: View {
       if installed.isEmpty { placeholder(model.refreshing ? "正在读取…" : "本机还没有模型文件") }
       ForEach(installed) { row in ModelRowView(row: row, model: model) }
     }
-    SettingsSection("可以下载", footer: "只有 Q8_0、Q4_K_M 评测过译文质量（盲评打平）；文件越小越快、越省内存，质量可能下降。一次下一个，关掉设置窗口也接着下；取消后再点「继续下载」从断开的地方接着下。") {
+    SettingsSection("可以下载", footer: "目前仅 Q8_0 和 Q4_K_M 经过译文质量评测（盲评结果持平）；模型文件越小，速度越快、内存占用越少，但质量可能下降。\n一次只能下载一个，关闭设置窗口后仍会继续；取消后再次点击「继续下载」，会从断开处续传。") {
       if downloadable.isEmpty { placeholder(model.refreshing ? "正在读取版本列表…" : model.remoteProblem == nil ? "都下载过了" : "读不到版本列表，见下面的下载地址") }
       ForEach(downloadable) { row in ModelRowView(row: row, model: model) }
     }
-    SettingsSection("下载设置", footer: "从 Hugging Face 的 \(ModelSource.repo) 下载，走系统网络设置（系统代理自动生效），下完按 sha256 校验；只下模型文件，不发送任何翻译内容。访问不了时可以换成镜像地址，如 https://hf-mirror.com。") {
+    SettingsSection("下载设置", footer: "从 Hugging Face 的 \(ModelSource.repo) 下载，遵循系统网络设置（系统代理会自动生效），下载完成后进行 sha256 校验；仅下载模型文件，不会发送任何翻译内容。无法访问时可改用镜像地址，如 https://hf-mirror.com。") {
       SettingsRow("下载地址", caption: endpointCaption, captionColor: endpointCaptionColor) {
         HStack(spacing: 8) {
           TextField("https://huggingface.co", text: $endpointDraft)

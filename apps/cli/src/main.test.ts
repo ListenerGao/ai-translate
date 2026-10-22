@@ -151,12 +151,12 @@ describe("ait", () => {
     assert.match(bad.stderr, /第 2 行/);
   });
 
-  test("有段落没翻成：保留原文，stderr 说明，退出码 3", async () => {
+  test("有段落未翻译：已保留原文，stderr 说明，退出码 3", async () => {
     mock.setResponder((req) => (req.source.startsWith("Broken") ? { status: 500 } : undefined));
     const run = await ait([], { input: "Healthy paragraph.\n\nBroken paragraph.\n" });
     assert.equal(run.code, 3);
     assert.equal(run.stdout, "【译】Healthy paragraph.\n\nBroken paragraph.\n");
-    assert.match(run.stderr, /第 2 段没翻成，保留原文/);
+    assert.match(run.stderr, /第 2 段未翻译，已保留原文。/);
   });
 
   test("参数错误、没有文字：退出码 1；--help、--version 正常", async () => {
@@ -221,13 +221,13 @@ describe("ait translate：Markdown", () => {
     assert.equal(readFileSync(join(dir, "guide.zh.md"), "utf8"), readFileSync(fixture("guide.zh.md"), "utf8"));
   });
 
-  test("有段落没翻成：保留原文，stderr 给出行号，退出码 3", async () => {
+  test("有段落未翻译：已保留原文，stderr 给出行号，退出码 3", async () => {
     writeFileSync(join(dir, "part.md"), "# Fine title\n\nBroken paragraph here.\n");
     mock.setResponder((req) => (req.source.startsWith("Broken") ? { status: 500 } : undefined));
     const run = await ait(["translate", join(dir, "part.md"), "-o", "-"]);
     assert.equal(run.code, 3);
     assert.equal(run.stdout, "# 【译】Fine title\n\nBroken paragraph here.\n");
-    assert.match(run.stderr, /第 3 行没翻成，保留原文/);
+    assert.match(run.stderr, /第 3 行未翻译，已保留原文。/);
   });
 
   test("文件错误：不支持的类型、找不到文件、不是 UTF-8、输出到原文件，退出码 1", async () => {

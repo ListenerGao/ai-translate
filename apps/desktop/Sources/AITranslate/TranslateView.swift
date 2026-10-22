@@ -236,7 +236,7 @@ struct TranslateView: View {
     case let .failed(reason):
       VStack(alignment: .leading, spacing: 5) {
         Text(row.source).font(.system(size: 15)).lineSpacing(4).foregroundStyle(.secondary)
-        Label("没翻成，保留原文：\(reason)", systemImage: "exclamationmark.triangle.fill")
+        Label("未翻译，已保留原文。\(reason)", systemImage: "exclamationmark.triangle.fill")
           .font(.system(size: 11))
           .foregroundStyle(.orange)
       }

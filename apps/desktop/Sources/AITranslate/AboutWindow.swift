@@ -1,5 +1,5 @@
 // 关于窗口：系统自带的关于面板版本行固定是「版本 0.1.0 (1)」、底部字号改不了，这里自己画（主人 2026-10-20 要求）：
-// App 图标、名字、「V0.1.0 · Build 2」这样的版本号（从 Info.plist 读）、一句说明、最底部「Made by ListenerGao」；文字都能选中复制。
+// App 图标、名字、「V0.2.0 · Build 5」这样的版本号（从 Info.plist 读）、一句说明、最底部「Made by ListenerGao」；文字都能选中复制。
 import AppKit
 import SwiftUI
 

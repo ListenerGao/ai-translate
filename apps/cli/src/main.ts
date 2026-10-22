@@ -36,7 +36,7 @@ const HELP = `ait：用本机模型翻译，内容不出本机
   -h, --help         显示帮助
   -v, --version      显示版本
 
-退出码：0 成功；1 参数或文件错误；2 aitd 没启动或密钥不对；3 有段落没翻成（保留原文）`;
+退出码：0 成功；1 参数或文件错误；2 aitd 没启动或密钥不对；3 有段落未翻译（已保留原文）`;
 
 interface Options {
   to: string;
@@ -115,7 +115,7 @@ async function translateText(conn: Connection, input: string, options: Options, 
     const r = results.get(s.id);
     if (r?.text !== undefined) return r.text;
     failed++;
-    process.stderr.write(`第 ${Number(s.id.slice(1)) + 1} 段没翻成，保留原文：${r?.error ?? "没有返回"}\n`);
+    process.stderr.write(`第 ${Number(s.id.slice(1)) + 1} 段未翻译，已保留原文。${r?.error ?? "没有返回"}\n`);
     return s.text;
   });
   process.stdout.write(`${out.join("\n\n")}\n`);
@@ -151,7 +151,7 @@ async function translateFile(file: string, options: Options, signal: AbortSignal
   // 拆段和重组和 aitd 的 /api/translate-document 共用 core 的同一份代码，两边输出逐字一致
   const { text: output, failed } = renderDocument(doc, outcomes, { bilingual: options.bilingual });
   // 没翻成的段落保留原文，stderr 列出行号，退出码 3
-  for (const f of failed) process.stderr.write(`第 ${f.line} 行没翻成，保留原文：${f.error}\n`);
+  for (const f of failed) process.stderr.write(`第 ${f.line} 行未翻译，已保留原文。${f.error}\n`);
   if (target === null) process.stdout.write(output);
   else {
     writeOutput(target, output);

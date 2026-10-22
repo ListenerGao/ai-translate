@@ -250,7 +250,7 @@ export class ManagedModel implements ModelBackend {
   async #launch(): Promise<LlamaServerTranslator> {
     const fail = (detail: string) => new TranslateError("server", detail);
     const { modelFile, port, runDir } = this.#o;
-    if (!existsSync(modelFile)) throw fail(`模型文件不存在：${modelFile}。在桌面应用的「设置 → 模型」里下载；从源码安装的，运行 scripts/download-model.sh`);
+    if (!existsSync(modelFile)) throw fail(`模型文件不存在，路径为 ${modelFile}。请在桌面应用的「设置 → 模型」中下载；从源码安装的，请运行 scripts/download-model.sh`);
     await this.#killOrphan();
     if (await portInUse(port)) throw fail(`端口 ${port} 被占用（可能还开着 scripts/start-model.sh），先停掉它`);
 

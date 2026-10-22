@@ -13,7 +13,7 @@ export interface Settings {
   source: string;
   target: string;
   displayMode: DisplayMode;
-  /** 设置页的术语表原文，一行一条 原文=译文 */
+  /** 插件早期版本存在这里的术语表（一行一条 原文=译文）：现在只用来搬到 aitd，搬完清空 */
   glossaryText: string;
   modelId: string;
   /** 划词翻译：选中文字后出现图标 */

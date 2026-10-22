@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Translate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "用本机运行的 Index-Translate 模型翻译网页，翻译内容不出本机",
   "minimum_chrome_version": "120",
   "icons": {

@@ -136,7 +136,7 @@ struct SettingsView: View {
 
   @ViewBuilder private var general: some View {
     SettingsSection("翻译") {
-      SettingsRow("默认翻译成", caption: "翻译窗口和划词翻译默认翻成这种语言") {
+      SettingsRow("默认翻译成", caption: "翻译窗口和划词翻译默认使用该语言") {
         Picker("默认翻译成", selection: $target) {
           ForEach(Languages.all) { Text($0.name).tag($0.code) }
         }
@@ -157,7 +157,7 @@ struct SettingsView: View {
     }
     if let installCommandLine {
       SettingsSection("命令行") {
-        SettingsRow("命令行工具 ait", caption: commandLineMessage ?? "在终端里用 ait 翻译文字、Markdown 和字幕；装到 ~/.local/bin/ait，用 App 里带的运行环境") {
+        SettingsRow("命令行工具 ait", caption: commandLineMessage ?? "在终端中使用 ait 翻译文本、Markdown 和字幕；可安装到 ~/.local/bin/ait，直接使用 App 自带的运行环境") {
           Button("安装") { commandLineMessage = installCommandLine() }.buttonStyle(SoftButtonStyle())
         }
       }
@@ -209,7 +209,7 @@ struct SettingsView: View {
   // MARK: 术语表
 
   @ViewBuilder private var glossary: some View {
-    SettingsSection("我的术语", footer: "一行一条「原文=译文」，# 开头的行是注释，写错的行不让保存。存在本机翻译服务 aitd 里，插件、命令行、桌面应用共用；只有段落里出现的术语才会发给模型。") {
+    SettingsSection("我的术语", footer: "每行一条「原文=译文」，以 # 开头的行是注释；格式有误的行无法保存。术语表保存在本机翻译服务 aitd 中，插件、命令行和桌面应用共用；只有段落中出现的术语才会发送给模型。") {
       VStack(alignment: .trailing, spacing: 10) {
         TextEditor(text: $model.glossaryText)
           .font(.system(size: 13))
@@ -252,7 +252,7 @@ struct SettingsView: View {
       .padding(.top, 14)
       .overlay(alignment: .top) { Divider() }
     }
-    SettingsSection("内置术语", footer: "一直生效；自己写了同一个原文时以自己的为准。") {
+    SettingsSection("内置术语", footer: "始终生效；若自定义了相同的原文，以你的设置为准。") {
       Text(SettingsModel.builtinGlossary.replacingOccurrences(of: "、", with: "\n"))
         .font(.system(size: 13))
         .foregroundStyle(.secondary)
@@ -287,7 +287,7 @@ struct SettingsView: View {
       .padding(.vertical, 14)
       .overlay(alignment: .top) { Divider() }
     }
-    SettingsSection("Chrome 插件连接", footer: "在插件的设置页填这两项：「本机翻译服务地址」和上面一样就不用改（插件默认用 8790 端口；8790 被别的程序占着时，App 会自动换一个端口）；「密钥」粘贴这里复制的密钥。密钥只给本机的插件用，不要发给别人。") {
+    SettingsSection("Chrome 插件连接") {
       SettingsRow("本机翻译服务地址") {
         HStack(spacing: 12) {
           value(endpoint())
@@ -300,7 +300,23 @@ struct SettingsView: View {
       SettingsRow("密钥", caption: "存在本机，这里不显示") {
         copyButton("复制密钥", id: "key", action: copyKey)
       }
+      // 插件设置页里这两项怎么填：分两条，标签加粗（主人 2026-10-22 定）
+      VStack(alignment: .leading, spacing: 4) {
+        bullet("本机翻译服务地址", "与上方一致即可，无需修改。插件默认使用 8790 端口；若该端口被其他程序占用，App 会自动改用其他端口。")
+        bullet("密钥", "粘贴此处复制的密钥。密钥仅供本机插件使用，请勿外传。")
+      }
+      .padding(.top, 8)
     }
+  }
+
+  /** 说明里的一条：圆点、加粗的标签和说明，折行时和第一行的文字对齐 */
+  private func bullet(_ label: String, _ text: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      Text("•")
+      Text("\(Text(label).fontWeight(.semibold))：\(text)").fixedSize(horizontal: false, vertical: true)
+    }
+    .font(.system(size: 12))
+    .foregroundStyle(.secondary)
   }
 
   /** 复制按钮：成功后显示「已复制」2 秒 */

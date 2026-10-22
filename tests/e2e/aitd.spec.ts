@@ -1,6 +1,6 @@
 // Goal 4 CP4：插件改连 aitd，编号对应施工清单 CP4 的 e2e 用例 2~5（用例 1 是原有用例原样通过）
 import type { Page, Worker } from "@playwright/test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -66,21 +66,15 @@ test("3 模型已休眠：弹窗显示「已休眠」；开启翻译后模型自
   }
 });
 
-test("4 设置页的术语表读写 aitd；插件里的旧术语表第一次连上时搬过去（写错的行不搬）", async ({ context, background, extensionId, aitd, mock }) => {
+test("4 插件里的旧术语表：打开设置页、连得上 aitd 时搬过去（写错的行不搬）；设置页只提示术语表在桌面应用里编辑", async ({ context, background, extensionId, aitd, mock }) => {
   void mock;
   await background.evaluate(() => chrome.storage.local.set({ glossaryText: "kubelet=节点代理\nno equals here" }));
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/options.html`);
-  await expect(page.locator("#glossary")).toHaveValue("kubelet=节点代理");
-  expect(readFileSync(join(aitd.home, "glossary.txt"), "utf8")).toBe("kubelet=节点代理");
+  await expect.poll(() => (existsSync(join(aitd.home, "glossary.txt")) ? readFileSync(join(aitd.home, "glossary.txt"), "utf8") : "")).toBe("kubelet=节点代理");
   expect(await background.evaluate(() => chrome.storage.local.get("glossaryText"))).toEqual({ glossaryText: "" });
-
-  await page.fill("#glossary", "kubelet=节点代理\nmockup=原型图");
-  await page.click("button[type=submit]");
-  await expect(page.locator("#status")).toHaveText("已保存");
-  expect(readFileSync(join(aitd.home, "glossary.txt"), "utf8")).toBe("kubelet=节点代理\nmockup=原型图");
-  await page.reload();
-  await expect(page.locator("#glossary")).toHaveValue("kubelet=节点代理\nmockup=原型图");
+  await expect(page.locator("#glossary-hint")).toContainText("插件、命令行和桌面应用共用");
+  await expect(page.locator("textarea")).toHaveCount(0);
 });
 
 test("5 命令行批量翻译 50 段的同时滑动翻译：视口内的段落照样先出译文", async ({ context, background, aitd, mock, site }) => {
