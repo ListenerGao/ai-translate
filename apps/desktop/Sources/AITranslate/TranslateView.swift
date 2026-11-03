@@ -230,7 +230,9 @@ struct TranslateView: View {
   private func rowView(_ row: TranslateModel.Row) -> some View {
     switch row.state {
     case .pending:
-      Text(row.source).font(.system(size: 15)).lineSpacing(4).redacted(reason: .placeholder).modifier(Pulse())
+      // 不用 Pulse 那种无限循环动画：几百段一起 pending 时等于几百个动画每帧都在重画，
+      // 配上下面整列「可选中的文字」，翻译一开始就把主线程占满（2026-10-27 卡死）。进度看标题栏的段数。
+      Text(row.source).font(.system(size: 15)).lineSpacing(4).redacted(reason: .placeholder).opacity(0.45)
     case let .done(text):
       Text(text).font(.system(size: 15)).lineSpacing(4)
     case let .failed(reason):

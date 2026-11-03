@@ -14,13 +14,15 @@ final class FakeBackend: TranslateBackend, @unchecked Sendable {
   var reversed = true
   var failing: Set<String> = []
   var streamError: Error?
+  /** 最后一段额外等多久再返回，模拟前面命中缓存、最后一段要真翻译 */
+  var lastDelay: Duration?
 
   var requests: [(segments: [TranslateSegment], target: String)] { lock.withLock { _requests } }
   var cancelled: Int { lock.withLock { _cancelled } }
 
   func translate(_ segments: [TranslateSegment], source: String, target: String) -> AsyncThrowingStream<SegmentResult, Error> {
     lock.withLock { _requests.append((segments, target)) }
-    let (delay, order, failing, streamError) = (delay, reversed ? segments.reversed() : segments, failing, streamError)
+    let (delay, order, failing, streamError, lastDelay) = (delay, reversed ? segments.reversed() : segments, failing, streamError, lastDelay)
     return AsyncThrowingStream { continuation in
       let task = Task {
         if let streamError {
@@ -28,7 +30,7 @@ final class FakeBackend: TranslateBackend, @unchecked Sendable {
           return
         }
         for s in order {
-          try? await Task.sleep(for: delay)
+          try? await Task.sleep(for: s.id == order.last?.id ? (lastDelay ?? delay) : delay)
           if Task.isCancelled { return }
           continuation.yield(failing.contains(s.text) ? SegmentResult(id: s.id, error: "模型服务出错") : SegmentResult(id: s.id, text: "【\(target)】\(s.text)"))
         }
@@ -261,5 +263,56 @@ struct TranslateModelTests {
     await settle(model)
     #expect(model.rows.isEmpty)
     #expect(backend.requests.count == 1)
+  }
+
+  @Test("几十段几乎同时回来（缓存命中）：结果合并成一批，不漏段、顺序不乱、都标成翻好")
+  func manySegmentsAtOnce() async {
+    let backend = FakeBackend()
+    backend.delay = .zero
+    let model = TranslateModel(backend: backend, debounce: .milliseconds(1))
+    let paragraphs = (1...120).map { "Paragraph number \($0)." }
+    model.input = paragraphs.joined(separator: "\n\n")
+    model.translateNow()
+    await settle(model)
+    #expect(model.rows.count == 120)
+    #expect(model.rows.map(\.id) == Array(0..<120))
+    #expect(model.rows.allSatisfy { $0.state == .done("【zh】\($0.source)") })
+    #expect(model.progress == (120, 120))
+    #expect(model.isTranslating == false)
+  }
+
+  @Test("一批里混着翻成和翻不成的：两种结果都落到对应的段，不会互相盖掉")
+  func mixedBatch() async {
+    let backend = FakeBackend()
+    backend.delay = .zero
+    backend.failing = ["Bad two.", "Bad four."]
+    let model = TranslateModel(backend: backend, debounce: .milliseconds(1))
+    model.input = "Good one.\n\nBad two.\n\nGood three.\n\nBad four."
+    model.translateNow()
+    await settle(model)
+    #expect(model.rows[0].state == .done("【zh】Good one."))
+    #expect(model.rows[1].state == .failed("模型服务出错"))
+    #expect(model.rows[2].state == .done("【zh】Good three."))
+    #expect(model.rows[3].state == .failed("模型服务出错"))
+    #expect(model.progress == (2, 4))
+  }
+
+  @Test("前面几段马上回来、最后一段很慢：前面的不能卡在缓冲里，要先显示出来")
+  func fastSegmentsShownBeforeSlowOne() async {
+    let backend = FakeBackend()
+    backend.delay = .zero
+    backend.reversed = false
+    backend.lastDelay = .seconds(2)
+    let model = TranslateModel(backend: backend, debounce: .milliseconds(1))
+    model.input = "One.\n\nTwo.\n\nThree.\n\nFour."
+    model.translateNow()
+    try? await Task.sleep(for: .milliseconds(500))
+    #expect(model.rows[0].state == .done("【zh】One."))
+    #expect(model.rows[1].state == .done("【zh】Two."))
+    #expect(model.rows[2].state == .done("【zh】Three."))
+    #expect(model.rows[3].state == .pending)
+    #expect(model.isTranslating)
+    await settle(model)
+    #expect(model.rows[3].state == .done("【zh】Four."))
   }
 }

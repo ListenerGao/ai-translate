@@ -79,8 +79,12 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
     }
     NSApp.activate()
     window.makeKeyAndOrderFront(nil)
-    // 打开窗口就能直接输入：焦点放在左边输入框，不落在「清空」这类小按钮上
-    if let input = Self.inputView(in: window.contentView) { window.makeFirstResponder(input) }
+    // 打开窗口就能直接输入：焦点放在左边输入框，不落在「翻译」「清空」这类小按钮上。
+    // 第一次打开时窗口刚建好，SwiftUI 还没生成输入框，当场找不到就会让系统把焦点给到「翻译」按钮（开了键盘导航时显示蓝色焦点框），
+    // 所以放到下一轮主循环再设
+    DispatchQueue.main.async {
+      if let input = Self.inputView(in: window.contentView) { window.makeFirstResponder(input) }
+    }
   }
 
   private static func inputView(in view: NSView?) -> NSTextView? {

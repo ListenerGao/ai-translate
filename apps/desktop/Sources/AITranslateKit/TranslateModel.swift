@@ -128,18 +128,49 @@ public final class TranslateModel {
     isTranslating = true
     let stream = backend.translate(segments, source: source, target: target)
     translationTask = Task {
+      // 不要每收到一段就改一次 rows：缓存命中时几十上百段会在几毫秒内一起回来，每段都触发一次
+      // 右边整列「可选中的文字」重排，主线程会被占死、转菊花点不动（2026-10-27 卡死，内存涨到 2.8 GB）。
+      // 先攒着，每 16 毫秒（一帧）最多刷一次，同一帧里的结果合并成一次重画；慢速翻译时仍然一段一段即时显示。
+      var buffered: [(Int, Row.State)] = []
+      var lastFlush = ContinuousClock.now
+      // 一帧内到的结果没立刻刷出去时，补排一次延迟刷新：否则后面如果要等很久，这几段会一直卡在缓冲里不显示
+      var flushTask: Task<Void, Never>?
+      defer { flushTask?.cancel() }
+      @MainActor func flush() {
+        flushTask?.cancel()
+        flushTask = nil
+        guard !buffered.isEmpty else { return }
+        var updated = rows
+        for (i, state) in buffered where updated.indices.contains(i) {
+          updated[i].state = state
+        }
+        buffered.removeAll(keepingCapacity: true)
+        rows = updated
+        lastFlush = .now
+      }
       do {
         for try await result in stream {
           if Task.isCancelled { return }
           guard let i = Int(result.id), rows.indices.contains(i) else { continue }
           if let text = result.text {
-            rows[i].state = .done(text)
+            buffered.append((i, .done(text)))
             remember(Self.key(source, target, rows[i].source), text)
           } else {
-            rows[i].state = .failed(result.error ?? "没有返回")
+            buffered.append((i, .failed(result.error ?? "没有返回")))
+          }
+          if ContinuousClock.now - lastFlush >= .milliseconds(16) {
+            flush()
+            // 让出主线程，SwiftUI 才有机会把这一批画出来
+            await Task.yield()
+          } else if flushTask == nil {
+            flushTask = Task {
+              try? await Task.sleep(for: .milliseconds(16))
+              if !Task.isCancelled { flush() }
+            }
           }
         }
         if Task.isCancelled { return }
+        flush()
         for i in rows.indices where rows[i].state == .pending { rows[i].state = .failed("没有返回") }
       } catch {
         if Task.isCancelled || error is CancellationError { return }

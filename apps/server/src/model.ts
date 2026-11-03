@@ -241,7 +241,9 @@ export class ManagedModel implements ModelBackend {
     } catch (err) {
       this.#failures.push(Date.now());
       this.#detail = err instanceof TranslateError ? err.detail : "模型服务启动失败";
-      this.#state = this.#failures.length >= MAX_FAILURES ? "error" : "stopped";
+      // 启动失败就是出错，不能先记成 stopped 冒充「已休眠」：那样菜单栏只显示「已休眠 · 用到时自动启动」，
+      // 真正的原因（模型文件损坏、Metal 编译失败等）被藏起来，主人会以为是正常休眠（2026-10-30 踩过）
+      this.#state = "error";
       this.#o.log?.("model-start-failed", { failures: this.#failures.length });
       throw new TranslateError("server", this.#detail);
     }
