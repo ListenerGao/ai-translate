@@ -27,6 +27,7 @@ api-key
 # AI 本地配置
 .claude/
 .codex/
+.workbuddy-ai/
 
 # 任务临时文件，正式流程不依赖其中内容
 .tmp/
