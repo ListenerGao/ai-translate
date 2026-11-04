@@ -16,6 +16,9 @@ final class ParagraphHighlight {
 
   @ObservationIgnored private let syncer: ScrollSyncer
   @ObservationIgnored private var token: NSObjectProtocol?
+  /** 等下一轮主循环再读的字段编辑器；同一轮里的多次选中变化只读一次 */
+  @ObservationIgnored private weak var pendingEditor: NSTextView?
+  @ObservationIgnored private var scheduled = false
 
   init(syncer: ScrollSyncer) {
     self.syncer = syncer
@@ -23,7 +26,25 @@ final class ParagraphHighlight {
       // 选中变化总是在主线程上发出
       nonisolated(unsafe) let editor = note.object as? NSTextView
       MainActor.assumeIsolated {
-        if let editor, editor.isFieldEditor { self?.targetSelectionChanged(editor) }
+        if let editor, editor.isFieldEditor { self?.scheduleTargetSelection(editor) }
+      }
+    }
+  }
+
+  /**
+   不在通知里当场改高亮：SwiftUI 重画译文时会给正在选中的文字框重设内容，系统随之修正选中范围、发出选中变化通知，
+   当场改 source 又会触发下一次重画，主线程一直空转、内存涨到 1.7 GB（2026-11-03 卡死，选中过译文之后）。
+   放到下一轮主循环、读那时真实的选中状态，重画过程中临时的选中变化被合并掉，值不变就不再触发重画。
+   */
+  private func scheduleTargetSelection(_ editor: NSTextView) {
+    pendingEditor = editor
+    guard !scheduled else { return }
+    scheduled = true
+    DispatchQueue.main.async { [weak self] in
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        self.scheduled = false
+        if let editor = self.pendingEditor { self.targetSelectionChanged(editor) }
       }
     }
   }

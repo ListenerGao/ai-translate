@@ -42,6 +42,7 @@ struct InputTextView: NSViewRepresentable {
     textView.string = text
 
     let scroll = NSScrollView()
+    scroll.contentView = InputClipView()
     scroll.hasVerticalScroller = true
     scroll.drawsBackground = false
     scroll.documentView = textView
@@ -75,6 +76,15 @@ struct InputTextView: NSViewRepresentable {
       // 可能发生在 SwiftUI 更新界面的过程中（填入文字时），晚一拍再改状态
       DispatchQueue.main.async { onSelect(selection) }
     }
+  }
+}
+
+/** 输入框外面那层：文字左边留白（大约 10 点宽）点下去落在这层上，原来会拖动窗口（窗口开了背景可拖），从那里往右拖选不上。改成交给输入框处理 */
+final class InputClipView: NSClipView {
+  override var mouseDownCanMoveWindow: Bool { false }
+
+  override func mouseDown(with event: NSEvent) {
+    if let text = documentView { text.mouseDown(with: event) } else { super.mouseDown(with: event) }
   }
 }
 

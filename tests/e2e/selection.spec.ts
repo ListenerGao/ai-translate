@@ -151,7 +151,7 @@ test.describe("划词翻译", () => {
     expect(cardStyle).toEqual({ background: "rgb(255, 255, 255)", color: "rgb(17, 24, 39)", fontSize: "15px" });
   });
 
-  test("10 翻译卡片显示原文；改目标语言就用新语言重翻，下拉显示新语言", async ({ context, mock, site }) => {
+  test("10 翻译卡片显示原文；改目标语言就用新语言重翻，胶囊显示新语言；语言列表 Esc 只收起列表", async ({ context, mock, site }) => {
     const page = await context.newPage();
     await page.goto(`${site}/selection.html`);
     const text = await select(page, "#p1");
@@ -159,7 +159,16 @@ test.describe("划词翻译", () => {
     await expect(card(page).locator(".source-text")).toHaveText(text);
     await expect(card(page).locator(".text")).toHaveText(`【译】${text}`);
     await expect(card(page).locator(".lang-name")).toHaveText("简体中文");
-    await card(page).locator("select.target").selectOption("ja");
+    const list = page.locator("ait-selection .langs");
+    await card(page).locator(".lang").click();
+    await expect(list).toBeVisible();
+    await expect(list.locator('[aria-selected="true"]')).toHaveText("简体中文");
+    await page.keyboard.press("Escape");
+    await expect(list).toBeHidden();
+    await expect(card(page)).toBeVisible();
+    await card(page).locator(".lang").click();
+    await list.locator('[data-code="ja"]').click();
+    await expect(list).toBeHidden();
     await expect(card(page).locator(".lang-name")).toHaveText("日语");
     await expect.poll(() => mock.requests.length).toBe(2);
     expect(mock.requests[1]!.prompt).toContain("翻译为日语");
@@ -201,7 +210,7 @@ test.describe("划词翻译", () => {
     await settle(mock, page);
   });
 
-  test("12 原文超过两行才出现展开按钮；点了展开，再点收起", async ({ context, mock, site }) => {
+  test("12 原文超过三行才出现展开按钮；点了展开，再点收起", async ({ context, mock, site }) => {
     const page = await context.newPage();
     await page.goto(`${site}/selection.html`);
     await select(page, "#p1");

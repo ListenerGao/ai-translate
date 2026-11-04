@@ -32,6 +32,23 @@ struct LanguageBar: View {
   }
 }
 
+/**
+ 左边的输入框单独成一个视图，只有它读 highlight.source：选中译文带出的原文高亮变化时只重画输入框，
+ 不连带重画整个翻译窗口和右边整列可选中的译文（2026-11-03 卡死：高亮变化 → 重画译文 → 选中变化 → 高亮变化，一直循环）
+ */
+private struct SourceEditor: View {
+  @Bindable var model: TranslateModel
+  let syncer: ScrollSyncer
+  let highlight: ParagraphHighlight
+  let openFile: (URL) -> Void
+
+  var body: some View {
+    InputTextView(text: $model.input, onDropFile: openFile, syncer: syncer, highlighted: highlight.source) { selection in
+      highlight.sourceSelectionChanged(selection, text: model.input)
+    }
+  }
+}
+
 struct TranslateView: View {
   static let resultSpace = "result"
 
@@ -90,9 +107,7 @@ struct TranslateView: View {
             .help("清空")
           }
         }
-        InputTextView(text: $model.input, onDropFile: openFile, syncer: syncer, highlighted: highlight.source) { selection in
-          highlight.sourceSelectionChanged(selection, text: model.input)
-        }
+        SourceEditor(model: model, syncer: syncer, highlight: highlight, openFile: openFile)
           .overlay(alignment: .topLeading) {
             if model.input.isEmpty {
               Text("粘贴或输入要翻译的文字，空行分段")
@@ -143,7 +158,7 @@ struct TranslateView: View {
         CardHeader(title: "译文") {
           status
           Button(action: copy) {
-            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+            Image(systemName: copied ? "checkmark" : "square.on.square")
               .foregroundStyle(copied ? Color.green : Color.secondary)
               .frame(width: 18)
           }
@@ -195,6 +210,8 @@ struct TranslateView: View {
       .foregroundStyle(.quaternary)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
+      // 内容不满一屏时也撑满可见区域：空白处落在下面的 FinderView 上，按下去不会拖动窗口（窗口开了背景可拖），方便从空白处开始拖选
+      GeometryReader { viewport in
       ScrollView {
         VStack(alignment: .leading, spacing: 16) {
           ForEach(model.rows) { row in
@@ -217,11 +234,13 @@ struct TranslateView: View {
         .padding(.bottom, 15)
         .textSelection(.enabled)
         .coordinateSpace(.named(Self.resultSpace))
+        .frame(maxWidth: .infinity, minHeight: viewport.size.height, alignment: .topLeading)
         .background(ScrollViewFinder { syncer.attachTarget($0) })
       }
       .onPreferenceChange(RowTopsKey.self) { tops in
         let ordered = tops.sorted { $0.key < $1.key }.map(\.value)
         MainActor.assumeIsolated { syncer.targetTops = ordered }
+      }
       }
     }
   }

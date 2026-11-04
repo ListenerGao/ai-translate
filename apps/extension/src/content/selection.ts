@@ -1,4 +1,6 @@
 // 划词翻译：选中文字后在选区末尾旁显示一条小工具条 -- 翻译图标点了才翻译、译文显示在翻译卡片里；朗读图标直接读选中的原文（不读译文）。
+// 卡片样式和桌面应用的划词卡片统一（apps/desktop/Sources/AITranslate/TranslationCard.swift：尺寸、字号、语言胶囊、底部「Esc 关闭」）；
+// 目标语言列表也照桌面卡片：胶囊下面弹出、当前语言打勾、鼠标或上下键高亮成品牌色，回车选中，Esc 只收起列表。
 // 工具条和卡片挂在 Shadow DOM 里，:host 全部重置，网页样式影响不到它们，它们也不影响网页。
 // 页面没开启滑动翻译时也能用：用一次性消息发给后台，插到翻译队列最前。
 import { LANGUAGES } from "../shared/languages.ts";
@@ -16,6 +18,9 @@ const TOOL_HEIGHT = 26;
 const TOOLS_WIDTH = TOOL_WIDTH * 2 + 1; // 两个按钮加中间 1px 分隔线
 const CARD_WIDTH = 420;
 const GAP = 6;
+// 目标语言列表：宽度、每行高度，和桌面卡片一样
+const LANGS_WIDTH = 150;
+const LANG_ROW = 26;
 // 「中→A」翻译图标，取自 Remix Icon 4.9.1 的 translate（https://remixicon.com，许可允许在软件里当界面图标用）
 const TRANSLATE_ICON =
   "M5 15V17C5 18.0544 5.81588 18.9182 6.85074 18.9945L7 19H10V21H7C4.79086 21 3 19.2091 3 17V15H5ZM18 10L22.4 21H20.245L19.044 18H14.954L13.755 21H11.601L16 10H18ZM17 12.8852L15.753 16H18.245L17 12.8852ZM8 2V4H12V11H8V14H6V11H2V4H6V2H8ZM17 3C19.2091 3 21 4.79086 21 7V9H19V7C19 5.89543 18.1046 5 17 5H14V3H17ZM6 6H4V9H6V6ZM10 6H8V9H10V6Z";
@@ -28,7 +33,7 @@ const LINE_ICONS = {
   check: '<path d="M20 6 9 17l-5-5"/>',
   speaker: '<path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
 } as const;
-const lineIcon = (name: keyof typeof LINE_ICONS, size = 18) =>
+const lineIcon = (name: keyof typeof LINE_ICONS, size = 15) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LINE_ICONS[name]}</svg>`;
 
 const STYLE = `
@@ -43,44 +48,56 @@ const STYLE = `
 .icon:focus-visible { outline: 2px solid #9cb6ff; outline-offset: -2px; }
 .speak[aria-pressed="true"] { background: rgba(255, 255, 255, 0.28); }
 
-.card { --bg: #ffffff; --fg: #111827; --muted: #6b7280; --line: #e5e7eb; --hover: #f3f4f6; --accent: #2753c8; --error: #c2410c; --ok: #16a34a;
-  position: fixed; box-sizing: border-box; width: ${CARD_WIDTH}px; max-width: calc(100vw - 16px); max-height: min(70vh, 520px);
+.card, .langs { --bg: #ffffff; --fg: #111827; --muted: #6b7280; --line: #e5e7eb; --hover: #f3f4f6; --accent: #2753c8; --error: #c2410c; --ok: #16a34a; }
+.card { position: fixed; box-sizing: border-box; width: ${CARD_WIDTH}px; max-width: calc(100vw - 16px); max-height: min(70vh, 520px);
   display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 12px;
   background: var(--bg); color: var(--fg); font: 15px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
   text-align: left; box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14); }
 @media (prefers-color-scheme: dark) {
-  .card { --bg: #1f2227; --fg: #e8eaee; --muted: #9aa1ae; --line: #33373e; --hover: #2a2e35; --accent: #8fb0ff; --error: #fdba74; --ok: #4ade80;
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
+  .card, .langs { --bg: #1f2227; --fg: #e8eaee; --muted: #9aa1ae; --line: #33373e; --hover: #2a2e35; --accent: #8fb0ff; --error: #fdba74; --ok: #4ade80; }
+  .card { box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
 }
-.head { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); }
-.logo { display: grid; margin-right: 6px; color: var(--muted); }
-.title { flex: 1; font-size: 16px; font-weight: 600; }
-.lang { position: relative; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 6px 0 8px; border-radius: 8px;
-  color: var(--muted); font-size: 14px; cursor: pointer; }
-.lang:hover { background: var(--hover); color: var(--fg); }
-.lang:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
-.lang select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font: inherit; }
+.card { --pill: rgba(0, 0, 0, 0.06); --faint: #b8bcc4; }
+@media (prefers-color-scheme: dark) { .card { --pill: rgba(255, 255, 255, 0.08); --faint: #6b7280; } }
+.head { display: flex; align-items: center; gap: 4px; box-sizing: border-box; height: 44px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line); }
+.logo { display: grid; margin-right: 4px; color: var(--muted); }
+.title { flex: 1; font-size: 15px; font-weight: 600; }
+/* 语言胶囊：固定宽度，语言名加箭头居中，和桌面卡片一样 */
+.lang { all: unset; display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; width: 100px; height: 28px;
+  border-radius: 999px; background: var(--pill); color: var(--fg); font-size: 13px; font-weight: 500; cursor: pointer; }
+.lang svg { color: var(--muted); }
+.lang:hover { background: var(--hover); }
+/* 胶囊不画焦点框（和桌面卡片一样）：点开列表后按上下键会让浏览器认为是键盘操作，焦点框一直挂着 */
+/* 目标语言列表：样子照系统菜单，和桌面卡片的列表一样 */
+.langs { position: fixed; box-sizing: border-box; width: ${LANGS_WIDTH}px; padding: 5px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: var(--fg); font: 13px/1 -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); user-select: none; }
+.option { display: flex; align-items: center; gap: 6px; height: ${LANG_ROW}px; padding: 0 8px; border-radius: 5px; cursor: default; }
+.option[data-lit="true"] { background: #2753c8; color: #fff; }
+.check { display: grid; visibility: hidden; }
+.option[aria-selected="true"] .check { visibility: visible; }
 .btn { all: unset; display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 8px; color: var(--muted); cursor: pointer; }
 .btn:hover { background: var(--hover); color: var(--fg); }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn[aria-pressed="true"] { color: var(--accent); }
 .pin[aria-pressed="true"] svg { fill: currentColor; }
 .body { overflow: auto; }
-.source { margin: 0 8px 0 16px; padding: 10px 0 6px; border-bottom: 1px solid var(--line); }
+.source { margin: 0 8px 0 14px; padding: 10px 0 4px; border-bottom: 1px solid var(--line); }
 .source-row { display: flex; align-items: flex-start; gap: 2px; }
-.source-text { flex: 1; margin: 0; padding-top: 3px; color: var(--muted); white-space: pre-wrap; word-break: break-word;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.source-text { flex: 1; margin: 0; padding-top: 3px; color: var(--muted); font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .source-text[data-expanded="true"] { display: block; }
 .expand svg { transition: transform 0.15s; }
 .expand[aria-expanded="true"] svg { transform: rotate(180deg); }
-.result { padding: 12px 16px 6px; }
+.result { padding: 12px 14px 6px; }
 .text { white-space: pre-wrap; word-break: break-word; }
 .text[data-state="pending"] { color: var(--muted); }
 .text[data-state="error"] { color: var(--error); }
-.actions { display: flex; gap: 2px; margin: 4px 0 0 -7px; }
-.foot { display: flex; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
-.engine { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.actions { display: flex; gap: 2px; margin: 0 0 0 -7px; }
+.foot { display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; height: 40px; padding: 0 14px; border-top: 1px solid var(--line); }
+.engine { display: inline-flex; align-items: center; gap: 7px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.hint { color: var(--faint); font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { .expand svg { transition: none; } }
 `;
 
@@ -98,6 +115,8 @@ export class SelectionTranslator {
   #cardText = "";
   #anchor: DOMRect | null = null;
   #pinned = false;
+  /** 目标语言列表：undefined 是收着；打开时是高亮的第几项，null 表示没有高亮 */
+  #languageIndex: number | null | undefined = undefined;
   #seq = 0;
   #timer = 0;
   readonly #speaker = new Speaker();
@@ -160,18 +179,38 @@ export class SelectionTranslator {
   /** 点网页别处：收起工具条、停止朗读；卡片没固定就关掉 */
   #onMouseDown = (event: MouseEvent): void => {
     if (this.#inside(event)) return;
+    this.#closeLanguages();
     this.#hideTools();
     this.#stopSpeaking();
     if (!this.#pinned) this.#closeCard();
   };
 
   #onScroll = (): void => {
+    this.#closeLanguages();
     this.#hideTools();
     if (!this.#pinned) this.#closeCard();
   };
 
-  /** Esc：固定了也关 */
+  /** Esc：固定了也关；语言列表开着时上下键移动、回车或空格选中、Esc 只收起列表 */
   #onKeyDown = (event: KeyboardEvent): void => {
+    if (this.#languageIndex !== undefined) {
+      const last = LANGUAGES.length - 1;
+      const at = this.#languageIndex;
+      const keys: Record<string, () => void> = {
+        ArrowUp: () => this.#highlightLanguage(Math.max(0, (at ?? last + 1) - 1)),
+        ArrowDown: () => this.#highlightLanguage(Math.min(last, (at ?? -1) + 1)),
+        Enter: () => at !== null && this.#chooseLanguage(LANGUAGES[at]!.code),
+        " ": () => at !== null && this.#chooseLanguage(LANGUAGES[at]!.code),
+        Escape: () => this.#closeLanguages(),
+      };
+      const action = keys[event.key];
+      if (action) {
+        event.preventDefault();
+        event.stopPropagation();
+        action();
+        return;
+      }
+    }
     if (event.key === "Escape") this.#hideAll();
   };
 
@@ -189,6 +228,7 @@ export class SelectionTranslator {
     this.#seq++; // 还在路上的译文回来也不再显示
     this.#setPinned(false);
     this.#stopSpeaking();
+    this.#closeLanguages();
     if (this.#root !== null) this.#root.querySelector<HTMLElement>(".card")!.hidden = true;
   }
 
@@ -239,7 +279,9 @@ export class SelectionTranslator {
     if (this.#root !== null && this.#host?.isConnected) return this.#root;
     const host = document.createElement(HOST_TAG);
     const root = host.attachShadow({ mode: "open" });
-    const options = LANGUAGES.map((l) => `<option value="${l.code}">${l.name}</option>`).join("");
+    const options = LANGUAGES.map(
+      (l, i) => `<div class="option" role="option" data-code="${l.code}" data-index="${i}" aria-selected="false"><span class="check">${lineIcon("check", 12)}</span>${l.name}</div>`,
+    ).join("");
     root.innerHTML = `<style>${STYLE}</style>
       <div class="tools" hidden>
         <button class="icon translate" type="button" title="翻译选中的文字" aria-label="翻译选中的文字">
@@ -254,7 +296,7 @@ export class SelectionTranslator {
         <div class="head">
           <span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${TRANSLATE_ICON}"/></svg></span>
           <span class="title">翻译</span>
-          <label class="lang" title="目标语言"><span class="lang-name"></span>${lineIcon("chevron", 16)}<select class="target" aria-label="目标语言">${options}</select></label>
+          <button class="lang" type="button" title="目标语言" aria-haspopup="listbox" aria-expanded="false"><span class="lang-name"></span>${lineIcon("chevron", 12)}</button>
           <button class="btn pin" type="button" aria-pressed="false" title="固定：点别处、滚动页面时不关闭" aria-label="固定">${lineIcon("pin")}</button>
           <button class="btn close" type="button" title="关闭" aria-label="关闭">${lineIcon("close")}</button>
         </div>
@@ -271,8 +313,9 @@ export class SelectionTranslator {
             <div class="actions"><button class="btn copy" type="button" title="复制译文" aria-label="复制译文">${lineIcon("copy")}</button></div>
           </div>
         </div>
-        <div class="foot"><span class="engine"><span class="dot" aria-hidden="true"></span>Index-Translate-2B · 本机</span></div>
-      </div>`;
+        <div class="foot"><span class="engine"><span class="dot" aria-hidden="true"></span>Index-Translate-2B · 本机</span><span class="hint">Esc 关闭</span></div>
+      </div>
+      <div class="langs" role="listbox" aria-label="目标语言" hidden>${options}</div>`;
     const $ = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
     $(".tools").addEventListener("mousedown", (e) => e.preventDefault()); // 点图标时保住页面上的选区
     $(".translate").addEventListener("click", () => this.#openCard());
@@ -282,10 +325,21 @@ export class SelectionTranslator {
     $(".pin").addEventListener("click", () => this.#setPinned(!this.#pinned));
     $(".expand").addEventListener("click", () => this.#toggleSource());
     $(".copy").addEventListener("click", () => void this.#copy());
-    $<HTMLSelectElement>(".target").addEventListener("change", (e) => {
-      this.#cardTarget = (e.target as HTMLSelectElement).value;
-      this.#showTarget();
-      void this.#request();
+    $(".lang").addEventListener("click", () => this.#toggleLanguages());
+    // 点卡片里别的地方收起列表
+    $(".card").addEventListener("mousedown", (e) => {
+      if (!e.composedPath().includes($(".lang"))) this.#closeLanguages();
+    });
+    const list = $(".langs");
+    list.addEventListener("mousedown", (e) => e.preventDefault()); // 保住焦点和页面上的选区
+    list.addEventListener("mousemove", (e) => {
+      const option = (e.target as HTMLElement).closest<HTMLElement>(".option");
+      if (option) this.#highlightLanguage(Number(option.dataset.index));
+    });
+    list.addEventListener("mouseleave", () => this.#highlightLanguage(null));
+    list.addEventListener("click", (e) => {
+      const option = (e.target as HTMLElement).closest<HTMLElement>(".option");
+      if (option) this.#chooseLanguage(option.dataset.code!);
     });
     document.documentElement.append(host);
     this.#host = host;
@@ -308,7 +362,7 @@ export class SelectionTranslator {
     expand.setAttribute("aria-expanded", "false");
     this.#showTarget();
     card.hidden = false;
-    // 原文超过两行才出现「展开」
+    // 原文超过三行才出现「展开」
     expand.hidden = source.scrollHeight <= source.clientHeight + 1;
     void this.#request(stay);
   }
@@ -340,14 +394,52 @@ export class SelectionTranslator {
     return this.#cardTarget ?? this.#target;
   }
 
-  /** 语言下拉显示当前目标语言；不在列表里的语言（设置里手填的）临时加一项 */
+  /** 语言胶囊显示当前目标语言；不在列表里的语言（设置里手填的）显示代码，列表里不打勾 */
   #showTarget(): void {
     if (this.#root === null) return;
     const code = this.#effectiveTarget();
-    const select = this.#root.querySelector<HTMLSelectElement>(".target")!;
-    if (![...select.options].some((o) => o.value === code)) select.add(new Option(code, code));
-    select.value = code;
     this.#root.querySelector<HTMLElement>(".lang-name")!.textContent = LANGUAGES.find((l) => l.code === code)?.name ?? code;
+    for (const option of this.#root.querySelectorAll<HTMLElement>(".option")) option.setAttribute("aria-selected", String(option.dataset.code === code));
+  }
+
+  #toggleLanguages(): void {
+    if (this.#languageIndex !== undefined) return this.#closeLanguages();
+    const root = this.#root;
+    if (root === null) return;
+    // 挂在胶囊下面 4px、左边对齐；不出屏幕
+    const pill = root.querySelector<HTMLElement>(".lang")!.getBoundingClientRect();
+    const list = root.querySelector<HTMLElement>(".langs")!;
+    const height = LANGUAGES.length * LANG_ROW + 12;
+    list.style.left = `${clamp(pill.left, 8, window.innerWidth - LANGS_WIDTH - 8)}px`;
+    list.style.top = `${clamp(pill.bottom + 4, 8, window.innerHeight - height - 8)}px`;
+    list.hidden = false;
+    root.querySelector(".lang")!.setAttribute("aria-expanded", "true");
+    // 打开时停在当前语言上，和系统菜单一样
+    const current = LANGUAGES.findIndex((l) => l.code === this.#effectiveTarget());
+    this.#highlightLanguage(current >= 0 ? current : null);
+  }
+
+  #closeLanguages(): void {
+    if (this.#languageIndex === undefined || this.#root === null) return;
+    this.#languageIndex = undefined;
+    this.#root.querySelector<HTMLElement>(".langs")!.hidden = true;
+    this.#root.querySelector(".lang")!.setAttribute("aria-expanded", "false");
+  }
+
+  #highlightLanguage(index: number | null): void {
+    this.#languageIndex = index;
+    for (const option of this.#root?.querySelectorAll<HTMLElement>(".option") ?? []) {
+      option.dataset.lit = String(Number(option.dataset.index) === index);
+    }
+  }
+
+  /** 选了一种语言：只改这张卡片，立即重翻；选的就是当前语言时只收起列表 */
+  #chooseLanguage(code: string): void {
+    this.#closeLanguages();
+    if (code === this.#effectiveTarget()) return;
+    this.#cardTarget = code;
+    this.#showTarget();
+    void this.#request();
   }
 
   #setPinned(pinned: boolean): void {

@@ -1,5 +1,5 @@
 // 划词翻译卡片（Goal 7 CP3）：按 ⌥D 后出现在鼠标旁边，样式和插件的划词卡片一致 --
-// 顶部「翻译」、目标语言、固定、关闭；原文超过 3 行折叠、可展开；译文按段显示，能复制；底部标明本机模型。
+// 顶部「翻译」、目标语言、固定、关闭；原文超过 3 行折叠、可展开；原文能朗读（只用 macOS 本机语音）；译文按段显示，能复制；底部标明本机模型。
 // 卡片是不抢前台的浮动面板：不激活 AI Translate，原来的 App 还在前台；点卡片外面或切到别的 App 就关（固定时不关），Esc 关闭。
 // 键盘：Esc 或 ⌘W 关闭，⌘C 复制（选中了一部分就复制选中的），⌘P 固定，⌘L 打开目标语言列表（上下键、回车选，Esc 收起）。
 // 换目标语言只对这张卡片生效，不改设置里的默认值。取到的文字只发给本机 aitd，不写日志、不存历史。
@@ -15,6 +15,8 @@ final class CardState {
   var pinned = false
   var sourceExpanded = false
   var copied = false
+  /** 正在朗读原文 */
+  var speaking = false
   /** 正文（原文 + 译文）最高多少，超过就在卡片里滚动 */
   var maxBodyHeight: CGFloat = 420
   /** 目标语言列表开着；languageHighlight 是鼠标或上下键停在第几项 */
@@ -54,6 +56,8 @@ struct TranslationCardView: View {
   let close: () -> Void
   let togglePin: () -> Void
   let copy: () -> Void
+  /** 朗读原文；正在读时再点就停 */
+  let speak: () -> Void
   /** 卡片大小变了（译文出来、展开原文、换语言），控制器跟着调整面板 */
   let resized: (CGSize) -> Void
   @State private var sourceFullHeight: CGFloat = 0
@@ -147,7 +151,16 @@ struct TranslationCardView: View {
         }
       }
       .padding(.top, 10)
-      .padding(.bottom, 10)
+      .padding(.bottom, 2)
+      HStack {
+        let language = Speaker.language(of: model.input)
+        let available = language.map(Speaker.canSpeak) ?? false
+        CardIconButton(systemImage: state.speaking ? "stop.fill" : "speaker.wave.2", active: state.speaking, help: available ? (state.speaking ? "停止朗读" : "朗读原文") : "认不出原文的语言，或系统里没有这种语言的语音", action: speak)
+          .disabled(!available)
+          .padding(.leading, -7)
+        Spacer()
+      }
+      .padding(.bottom, 4)
       Rectangle().fill(Self.line).frame(height: 1)
     }
     .padding(.leading, 14)
@@ -164,7 +177,7 @@ struct TranslationCardView: View {
       } else {
         ForEach(model.rows) { row in rowView(row) }
         HStack {
-          CardIconButton(systemImage: state.copied ? "checkmark" : "doc.on.doc", active: state.copied, help: "复制译文（⌘C）", action: copy)
+          CardIconButton(systemImage: state.copied ? "checkmark" : "square.on.square", active: state.copied, help: "复制译文（⌘C）", action: copy)
             .disabled(model.isTranslating || model.rows.isEmpty)
             .padding(.leading, -7)
           Spacer()
@@ -315,6 +328,7 @@ final class CardPanel: NSPanel {
 final class TranslationCardController: NSObject {
   let model: TranslateModel
   let state = CardState()
+  private let speaker = Speaker()
   private var panel: CardPanel?
   /** 目标语言列表的小窗口，开着时是卡片的子窗口 */
   private var languagePanel: NSPanel?
@@ -328,6 +342,8 @@ final class TranslationCardController: NSObject {
 
   init(client: AitdClient) {
     model = TranslateModel(backend: client, target: Preferences.target)
+    super.init()
+    speaker.changed = { [weak self] speaking in self?.state.speaking = speaking }
   }
 
   var isVisible: Bool { panel?.isVisible ?? false }
@@ -347,6 +363,7 @@ final class TranslationCardController: NSObject {
     state.sourceExpanded = false
     state.closeLanguages()
     state.copied = false
+    speaker.stop()
     model.source = "auto"
     model.input = text
     model.translateNow()
@@ -361,6 +378,7 @@ final class TranslationCardController: NSObject {
   }
 
   func close() {
+    speaker.stop()
     stopWatching()
     guard let panel, panel.isVisible else { return }
     state.closeLanguages()
@@ -433,6 +451,7 @@ final class TranslationCardController: NSObject {
       close: { [weak self] in self?.close() },
       togglePin: { [weak self] in self?.state.pinned.toggle() },
       copy: { [weak self] in self?.copyAll() },
+      speak: { [weak self] in self?.toggleSpeak() },
       // 在排版过程中被调到：下一拍再改面板大小
       resized: { [weak self] size in DispatchQueue.main.async { self?.place(size: size) } }
     ))
@@ -537,6 +556,13 @@ final class TranslationCardController: NSObject {
     } else {
       copyAll()
     }
+  }
+
+  /** 朗读原文（按原文认出的语言挑语音）；正在读时停下 */
+  private func toggleSpeak() {
+    if speaker.isSpeaking { return speaker.stop() }
+    guard let language = Speaker.language(of: model.input) else { return }
+    speaker.speak(model.input, language: language)
   }
 
   private func copyAll() {

@@ -115,6 +115,27 @@ struct ScrollViewFinder: NSViewRepresentable {
   final class FinderView: NSView {
     var found: ((NSScrollView) -> Void)?
 
+    /** 垫在译文下面：在段落之间、文字右边的空白处按下去是要选文字，不是拖动窗口 */
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    /** 空白处按下：交给上下离得最近的那段译文，从那里开始拖选（在文字右边按下就从行尾开始选） */
+    override func mouseDown(with event: NSEvent) {
+      let point = convert(event.locationInWindow, from: nil)
+      func distance(_ field: NSTextField) -> CGFloat {
+        let rect = field.convert(field.bounds, to: self)
+        return point.y < rect.minY ? rect.minY - point.y : point.y > rect.maxY ? point.y - rect.maxY : 0
+      }
+      guard let document = enclosingScrollView?.documentView, let field = Self.textFields(in: document).min(by: { distance($0) < distance($1) }) else {
+        return super.mouseDown(with: event)
+      }
+      field.mouseDown(with: event)
+    }
+
+    private static func textFields(in view: NSView) -> [NSTextField] {
+      if let field = view as? NSTextField, field.isSelectable { return [field] }
+      return view.subviews.flatMap(textFields)
+    }
+
     override func viewDidMoveToWindow() {
       super.viewDidMoveToWindow()
       report()
