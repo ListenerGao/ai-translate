@@ -112,8 +112,29 @@ test("弹窗：语言、模型状态、翻译开关、显示方式立即生效�
   await popup.selectOption("#site-rule", "auto");
   await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: {} });
 
-  // 改目标语言
+  // 改原文语言、目标语言：只对这个标签页临时生效，不改设置；正在翻译的页面按新语言重翻
+  await popup.click("#toggle");
+  await expect(popup.locator("#toggle-label")).toHaveText("还原");
+  await settle(mock, page);
+  mock.requests.length = 0;
   await popup.selectOption("#target", "ja");
   await expect(popup.locator("#target-label")).toHaveText("日语 (日本語)");
-  expect(await background.evaluate(() => chrome.storage.local.get("target"))).toEqual({ target: "ja" });
+  await expect(popup.locator("#target-sub")).toHaveText("仅本页临时");
+  await expect(popup.locator("#toggle-label")).toHaveText("还原");
+  await expect.poll(() => mock.requests.length).toBeGreaterThan(0);
+  expect(mock.requests.every((r) => r.prompt.includes("翻译为日语"))).toBe(true);
+  await popup.selectOption("#source", "fr");
+  await expect(popup.locator("#source-label")).toHaveText("法语 (Français)");
+  await expect(popup.locator("#source-sub")).toHaveText("仅本页临时");
+  expect(await background.evaluate(() => chrome.storage.local.get(["source", "target"]))).toEqual({}); // 没写进设置
+  // 重新打开弹窗：显示这个标签页临时用的语言
+  await popup.reload();
+  await expect(popup.locator("#source-label")).toHaveText("法语 (Français)");
+  await expect(popup.locator("#target-label")).toHaveText("日语 (日本語)");
+  // 刷新页面：回到默认（原文自动检测、目标用设置里的）
+  await page.reload();
+  await popup.reload();
+  await expect(popup.locator("#source-sub")).toHaveText("自动检测");
+  await expect(popup.locator("#target-label")).toHaveText("简体中文 (Simplified Chinese)");
+  await expect(popup.locator("#target-sub")).toHaveText("目标语言");
 });

@@ -9,8 +9,7 @@ export interface Settings {
   /** 模型服务地址，只允许本机 */
   endpoint: string;
   apiKey: string;
-  /** "auto" 或语言代码 */
-  source: string;
+  /** 默认目标语言；原文语言不存设置，默认自动检测，弹窗里换的只对当前标签页（主人 2026-11-09 定） */
   target: string;
   displayMode: DisplayMode;
   /** 插件早期版本存在这里的术语表（一行一条 原文=译文）：现在只用来搬到 aitd，搬完清空 */
@@ -27,7 +26,6 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   endpoint: DEFAULT_ENDPOINT,
   apiKey: "",
-  source: "auto",
   target: "zh",
   displayMode: "bilingual",
   glossaryText: "",

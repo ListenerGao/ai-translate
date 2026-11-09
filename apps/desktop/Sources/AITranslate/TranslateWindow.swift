@@ -4,7 +4,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/** 目标语言存在 UserDefaults 里，翻译窗口和设置共用（和插件的设置分开存） */
+/** 默认目标语言存在 UserDefaults 里，只有设置里能改；翻译窗口、划词卡片里换的只临时生效（和插件的设置分开存） */
 enum Preferences {
   static let targetKey = "target"
 
@@ -159,8 +159,9 @@ final class TranslateWindowController: NSObject, NSWindowDelegate, NSToolbarDele
     return item
   }
 
-  /** 关窗口时清空原文和译文，下次打开是干净的窗口；翻过的内容在 aitd 的缓存里，再翻照样立即出 */
+  /** 关窗口时清空原文和译文、目标语言回到设置里的默认值，下次打开是干净的窗口；翻过的内容在 aitd 的缓存里，再翻照样立即出 */
   func windowWillClose(_ notification: Notification) {
+    model.target = Preferences.target
     model.reset()
     closeFile()
   }

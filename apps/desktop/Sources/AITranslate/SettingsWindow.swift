@@ -136,7 +136,7 @@ struct SettingsView: View {
 
   @ViewBuilder private var general: some View {
     SettingsSection("翻译") {
-      SettingsRow("默认翻译成", caption: "翻译窗口和划词翻译默认使用该语言") {
+      SettingsRow("默认翻译成", caption: "翻译窗口和划词翻译默认使用该语言；在窗口、卡片里临时换的不改这里") {
         Picker("默认翻译成", selection: $target) {
           ForEach(Languages.all) { Text($0.name).tag($0.code) }
         }

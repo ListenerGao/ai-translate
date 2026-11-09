@@ -42,13 +42,13 @@ function describe(err: unknown): { code: TranslateError["code"]; message: string
 /** 调度队列里的任务 id：段落 id 只在标签页内唯一 */
 const taskId = (tabId: number, segmentId: string) => `${tabId}:${segmentId}`;
 
-/** 按入队时的设置翻译一段；target 不传就用设置里的目标语言 */
-async function translateSegment(tabId: number, segment: Segment, priority: number, signal?: AbortSignal, target?: string): Promise<Outcome> {
+/** 翻译一段；原文语言默认自动检测，target 不传就用设置里的目标语言 */
+async function translateSegment(tabId: number, segment: Segment, priority: number, signal?: AbortSignal, target?: string, source = "auto"): Promise<Outcome> {
   const s = await getSettings();
   // 读设置期间可能已被撤销：这时任务还没进队列，撤销消息找不到它
   signal?.throwIfAborted();
   const translator = new AitdTranslator(s, priority);
-  const request = { segments: [segment], source: s.source, target: target ?? s.target, model: s.modelId };
+  const request = { segments: [segment], source, target: target ?? s.target, model: s.modelId };
   return scheduler.enqueue({
     id: taskId(tabId, segment.id),
     priority,
@@ -77,11 +77,11 @@ chrome.runtime.onConnect.addListener((port) => {
   // 每段一个撤销信号：撤销消息可能在查缓存期间到达，那时任务还没进队列
   const controllers = new Map<string, AbortController>();
 
-  const handle = (item: QueueItem) => {
+  const handle = (item: QueueItem, source: string, target: string) => {
     const controller = new AbortController();
     controllers.set(item.id, controller);
     const segment = { id: item.id, text: item.text, ...(item.markup === undefined ? {} : { markup: item.markup }) };
-    translateSegment(tabId, segment, item.priority, controller.signal)
+    translateSegment(tabId, segment, item.priority, controller.signal, target, source)
       .then((r) => post({ type: "result", id: item.id, text: r.text, cached: r.cached }))
       .catch((err: unknown) => {
         if (isAbortError(err)) return;
@@ -100,7 +100,7 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((msg: PageToBackground) => {
     switch (msg.type) {
       case "enqueue":
-        msg.items.forEach(handle);
+        for (const item of msg.items) handle(item, msg.source, msg.target);
         break;
       case "cancel":
         msg.ids.forEach(cancel);

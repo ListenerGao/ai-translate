@@ -53,19 +53,24 @@ auto.start();
 
 chrome.runtime.onMessage.addListener((msg: TabCommand, _sender, sendResponse: (status: TabStatus) => void) => {
   if (retired) return false;
+  const reply = () => void loadSettings().then((s) => sendResponse({ active: session.active, source: session.source, target: session.targetFor(s) }));
   if (msg.type === "status") {
-    sendResponse({ active: session.active });
-    return false;
+    reply();
+    return true;
   }
   if (msg.type === "detect") {
     void loadSettings()
-      .then((s) => detectPage(s.target))
+      .then((s) => detectPage(session.targetFor(s)))
       .then(sendResponse as (d: unknown) => void);
     return true;
   }
   if (msg.type === "toggle") {
     const done = session.active ? Promise.resolve(session.stop()) : session.start();
-    void done.then(() => sendResponse({ active: session.active }));
+    void done.then(reply);
+    return true;
+  }
+  if (msg.type === "set-languages") {
+    void session.setLanguages(msg.source, msg.target).then(reply);
     return true;
   }
   return false;

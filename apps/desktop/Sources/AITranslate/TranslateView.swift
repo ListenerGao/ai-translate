@@ -80,8 +80,8 @@ struct TranslateView: View {
       }
     }
     .onChange(of: model.source) { model.translateNow() }
+    // 这里换目标语言只对这个窗口临时生效，不改设置里的默认值（主人 2026-11-09 定）
     .onChange(of: model.target) {
-      Preferences.target = model.target
       model.translateNow()
       // 文件还没开始翻：输出文件名跟着目标语言变
       if let job = files.job, job.phase == .ready {

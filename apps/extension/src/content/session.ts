@@ -52,9 +52,37 @@ export class PageSession {
   #priorityTimer = 0;
   #retryTimer = 0;
   #bannerShown = false;
+  /** 弹窗里临时换的原文语言，只对这个标签页，默认自动检测 */
+  #source = "auto";
+  /** 弹窗里临时换的目标语言，只对这个标签页；base 是当时设置里的，设置里改了目标语言就作废、跟着设置走 */
+  #override: { base: string; code: string } | null = null;
 
   get active(): boolean {
     return this.#active;
+  }
+
+  /** 这个标签页用的原文语言 */
+  get source(): string {
+    return this.#source;
+  }
+
+  /** 这个标签页用的目标语言：临时换过就用临时的，否则用设置里的 */
+  targetFor(settings: Settings): string {
+    return this.#override?.base === settings.target ? this.#override.code : settings.target;
+  }
+
+  /** 弹窗里换语言：只记在这个标签页（不改设置），正在翻译时按新语言重翻 */
+  async setLanguages(source: string, code: string): Promise<void> {
+    const { target } = await loadSettings();
+    this.#source = source;
+    this.#override = code === target ? null : { base: target, code };
+    if (!this.#active) return;
+    this.stop();
+    await this.start();
+  }
+
+  get #target(): string {
+    return this.targetFor(this.#settings!);
   }
 
   async start(): Promise<void> {
@@ -116,7 +144,7 @@ export class PageSession {
 
   #scan(): void {
     if (!this.#active || this.#settings === null) return;
-    for (const { el, text, nodes, refs } of new BlockFinder().find(document.body, this.#settings.target)) {
+    for (const { el, text, nodes, refs } of new BlockFinder().find(document.body, this.#target)) {
       if (this.#byElement.has(el)) continue;
       const block: Block = {
         id: String(this.#nextId++),
@@ -168,12 +196,12 @@ export class PageSession {
       }
     }
     if (cancel.length > 0) this.#send({ type: "cancel", ids: cancel });
-    if (enqueue.length > 0) this.#send({ type: "enqueue", items: enqueue });
+    if (enqueue.length > 0) this.#send({ type: "enqueue", items: enqueue, source: this.#source, target: this.#target });
   }
 
   #markQueued(block: Block): QueueItem {
     block.status = "queued";
-    showPending(block, this.#settings!.target);
+    showPending(block, this.#target);
     const item: QueueItem = { id: block.id, text: block.text, priority: viewportDistance(block.el) };
     if (block.markup !== null) item.markup = block.markup;
     return item;
@@ -187,7 +215,7 @@ export class PageSession {
       const block = this.#blocks.get(id);
       if (block?.status === "idle") items.push(this.#markQueued(block));
     }
-    if (items.length > 0) this.#send({ type: "enqueue", items });
+    if (items.length > 0) this.#send({ type: "enqueue", items, source: this.#source, target: this.#target });
   }
 
   #onScroll = (): void => {
@@ -287,7 +315,7 @@ export class PageSession {
       }
       // 译文和原文一样（品牌名、产品名）就不显示，免得出现「Hugging Face Hugging Face」
       if (sameText(stripMarkers(msg.text), block.text)) clearPending(block);
-      else showResult(block, msg.text, this.#settings.target, this.#settings.displayMode);
+      else showResult(block, msg.text, this.#target, this.#settings.displayMode);
       return;
     }
     if (PAGE_LEVEL_ERRORS.has(msg.code)) {
@@ -307,6 +335,6 @@ export class PageSession {
     }
     // 超时、服务出错：段落下提示，滑出再回来会重试；译文不合格：不再重试
     block.status = msg.code === "invalid" ? "failed" : "idle";
-    showError(block, msg.message, this.#settings.target);
+    showError(block, msg.message, this.#target);
   }
 }

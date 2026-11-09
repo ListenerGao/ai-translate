@@ -18,6 +18,9 @@ let host = "";
 let active = false;
 let detected: PageDetection | null = null;
 let settings: Settings;
+/** 这个标签页正在用的原文语言、目标语言（弹窗里换的只对这个标签页临时生效，不改设置）；页面不能翻译时为 null */
+let pageSource: string | null = null;
+let pageTarget: string | null = null;
 
 // ---------- 快捷键显示 ----------
 
@@ -42,16 +45,19 @@ async function renderShortcuts(): Promise<void> {
 // ---------- 渲染 ----------
 
 function renderLanguages(): void {
-  if (settings.source === "auto") {
+  const from = pageSource ?? "auto";
+  if (from === "auto") {
     $("source-label").textContent = detected?.language ? languageLabel(detected.language) : "自动检测";
     $("source-sub").textContent = "自动检测";
   } else {
-    $("source-label").textContent = languageLabel(settings.source);
-    $("source-sub").textContent = "原文语言";
+    $("source-label").textContent = languageLabel(from);
+    $("source-sub").textContent = "仅本页临时";
   }
-  $("target-label").textContent = languageLabel(settings.target);
-  source.value = settings.source;
-  target.value = settings.target;
+  const to = pageTarget ?? settings.target;
+  $("target-label").textContent = languageLabel(to);
+  $("target-sub").textContent = to === settings.target ? "目标语言" : "仅本页临时";
+  source.value = from;
+  target.value = to;
 }
 
 function renderMode(mode: DisplayMode): void {
@@ -107,15 +113,18 @@ async function toggle(): Promise<void> {
   toggleButton.disabled = false;
 }
 
-/** 语言改了：正在翻译的页面重新翻一遍 */
-async function changeLanguage(patch: Partial<Settings>): Promise<void> {
-  await saveSettings(patch);
-  settings = { ...settings, ...patch };
-  renderLanguages();
-  if (active) {
-    await toggle();
-    await toggle();
+/**
+ * 语言改了：只对这个标签页临时生效、不改设置（默认目标语言在设置页改，原文语言默认自动检测，主人 2026-11-09 定），
+ * 正在翻译时页面自己按新语言重翻
+ */
+async function changeLanguages(): Promise<void> {
+  const command: TabCommand = { type: "set-languages", source: source.value, target: target.value };
+  const status: TabStatus | null = await chrome.tabs.sendMessage(tabId, command).catch(() => null);
+  if (status !== null) {
+    pageSource = status.source;
+    pageTarget = status.target;
   }
+  renderLanguages();
 }
 
 async function setRule(rule: SiteRule | "auto"): Promise<void> {
@@ -150,11 +159,14 @@ async function init(): Promise<void> {
     tab?.id === undefined ? null : await chrome.tabs.sendMessage(tab.id, { type: "status" } satisfies TabCommand).catch(() => null);
   if (tab?.id === undefined || tab.url === undefined || status === null) {
     $("detect").textContent = "此页面无法翻译：浏览器内置页面、应用商店等不允许插件运行；插件刚安装完成后，已打开的页面需刷新后才能使用";
+    source.disabled = target.disabled = true;
     return;
   }
   tabId = tab.id;
   host = new URL(tab.url).hostname;
   active = status.active;
+  pageSource = status.source;
+  pageTarget = status.target;
   renderToggle();
   toggleButton.disabled = false;
   siteRule.value = settings.siteRules[host] ?? "auto";
@@ -168,8 +180,8 @@ async function init(): Promise<void> {
 
 toggleButton.addEventListener("click", () => void toggle());
 modeButton.addEventListener("click", () => void flipDisplayMode().then(renderMode));
-source.addEventListener("change", () => void changeLanguage({ source: source.value }));
-target.addEventListener("change", () => void changeLanguage({ target: target.value }));
+source.addEventListener("change", () => void changeLanguages());
+target.addEventListener("change", () => void changeLanguages());
 siteRule.addEventListener("change", () => void setRule(siteRule.value as SiteRule | "auto"));
 $("options").addEventListener("click", () => void chrome.runtime.openOptionsPage());
 

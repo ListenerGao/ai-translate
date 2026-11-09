@@ -14,7 +14,8 @@ export interface QueueItem {
 }
 
 export type PageToBackground =
-  | { type: "enqueue"; items: QueueItem[] }
+  /** source、target：这个标签页的原文语言和目标语言（弹窗里临时换过就是临时的，否则原文自动检测、目标用设置里的） */
+  | { type: "enqueue"; items: QueueItem[]; source: string; target: string }
   | { type: "cancel"; ids: string[] }
   | { type: "priority"; updates: { id: string; priority: number }[] };
 
@@ -36,9 +37,15 @@ export type RuntimeMessage =
 
 export type SelectionResult = { ok: true; text: string } | { ok: false; message: string };
 
-/** 后台、弹窗发给标签页的一次性命令。detect：检测当前页面是不是英文文章，弹窗显示和自动开启都用它 */
-export type TabCommand = { type: "toggle" } | { type: "status" } | { type: "detect" };
+/**
+ * 后台、弹窗发给标签页的一次性命令。detect：检测当前页面是不是英文文章，弹窗显示和自动开启都用它；
+ * set-languages：弹窗里换原文语言、目标语言，只对这个标签页临时生效（刷新页面后回到默认），正在翻译时按新语言重翻
+ */
+export type TabCommand = { type: "toggle" } | { type: "status" } | { type: "detect" } | { type: "set-languages"; source: string; target: string };
 
 export interface TabStatus {
   active: boolean;
+  /** 这个标签页正在用的原文语言（"auto" 或语言代码）和目标语言 */
+  source: string;
+  target: string;
 }
