@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Concepts overview</title>
+<style>
+  body { font: 17px/1.6 sans-serif; margin: 0 auto; max-width: 700px; padding: 24px; }
+  .collapsed { display: none; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div><a href="#">Documentation home</a></div>
+  <div class="collapsed" id="tree"></div>
+</div>
+<main id="article"><h1 id="title">Concepts overview</h1></main>
+<script>
+  // 文档站的文章页：侧边目录收起着，里面几百个链接没显示；正文是英文文章，应该自动开启
+  const tree = document.getElementById("tree");
+  for (let i = 1; i <= 400; i++) {
+    const a = document.createElement("a");
+    a.href = "#section-" + i;
+    a.textContent = "Reference section number " + i + " of the handbook";
+    tree.append(a);
+  }
+  const article = document.getElementById("article");
+  const words = "a cluster schedules workloads across nodes and keeps the declared state of every object in sync".split(" ");
+  for (let i = 1; i <= 12; i++) {
+    const p = document.createElement("p");
+    p.id = "p" + i;
+    p.textContent = "Section " + i + ": " + Array.from({ length: 30 }, (_, k) => words[(i + k) % words.length]).join(" ") + ".";
+    article.append(p);
+  }
+</script>
+</body>
+</html>

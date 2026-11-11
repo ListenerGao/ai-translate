@@ -4,8 +4,10 @@
 // 但浏览器会把它的子元素当成块，子元素里的文字照样能被找到。
 
 import { plainText, type InlineNode } from "@ai-translate/core";
+import { isIdentifier, isMonospace } from "./text-rules.ts";
 
-// 落在这些元素里面的文字不翻：代码、导航、菜单、表单、可编辑区域、隐藏给读屏软件的区域、插件自己插入的节点等
+// 落在这些元素里面的文字不翻：代码、导航、菜单、表单、可编辑区域、隐藏给读屏软件的区域、插件自己插入的节点等。
+// 另外按内容和样式再排除一批（见 #candidate）：标识符、单独的时间、名字链接、排成代码样子的块
 const EXCLUDED_ANCESTORS = [
   "pre",
   "code",
@@ -30,6 +32,7 @@ const EXCLUDED_ANCESTORS = [
   "[aria-hidden='true']",
   "ait-translation",
   "ait-banner",
+  "ait-notice",
   "[data-ait-skip]",
 ].join(", ");
 
@@ -60,9 +63,40 @@ export interface FoundBlock {
   refs: Map<number, Element>;
 }
 
+const TIME_ELEMENTS = "time, relative-time, time-ago, local-time";
+const squash = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/** 排成代码的样子：等宽字体并且保留空白。有的网站代码块不用 pre、code 标签（在线文档、编辑器），只能看样式 */
+function isCodeStyled(el: Element): boolean {
+  const style = getComputedStyle(el);
+  return /^(pre|pre-wrap|break-spaces)$/.test(style.whiteSpace) && isMonospace(style.fontFamily);
+}
+
+/** 整段只是一个时间（提交时间、发布日期）；句子里夹着时间的照常翻 */
+function isTimeOnly(el: Element, text: string): boolean {
+  const time = el.closest(TIME_ELEMENTS) ?? el.querySelector(TIME_ELEMENTS);
+  return time !== null && squash(time.textContent ?? "") === text;
+}
+
+/** 整段只是一个链接，文字就是链接地址的末尾：文件名、文件夹名、用户名这类名字（区分大小写，「Pricing」这种导航文字不算） */
+function isNameLink(el: Element, text: string): boolean {
+  for (const a of el.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    if (squash(a.textContent ?? "") !== text) continue;
+    try {
+      const path = decodeURIComponent(new URL(a.href).pathname).replace(/\/+$/, "");
+      return path === text || path.endsWith(`/${text}`);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 /** 一次扫描用一个实例，缓存每个元素的分类 */
 export class BlockFinder {
   readonly #kinds = new Map<Element, BoxKind>();
+  /** 这次扫描里因为已经是目标语言而跳过的字数：判断页面是不是本来就是目标语言用 */
+  targetChars = 0;
 
   kind(el: Element): BoxKind {
     let k = this.#kinds.get(el);
@@ -145,7 +179,12 @@ export class BlockFinder {
     const { nodes, refs } = this.inline(el);
     const text = plainText(nodes);
     if (text.length < 2 || !/\p{L}/u.test(text)) return null;
-    if (isAlreadyTarget(text, target)) return null;
+    if (isAlreadyTarget(text, target)) {
+      this.targetChars += text.length;
+      return null;
+    }
+    // 不是要翻译的文字：标识符、单独的时间、文件名这类名字链接、排成代码样子的块
+    if (isIdentifier(text) || isTimeOnly(el, text) || isNameLink(el, text) || isCodeStyled(el)) return null;
     return { el, text, nodes, refs };
   }
 }

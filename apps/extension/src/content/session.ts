@@ -10,6 +10,7 @@ import {
   clearView,
   ensureStyle,
   hideBanner,
+  hideNotice,
   removeStyle,
   showBanner,
   showError,
@@ -130,6 +131,7 @@ export class PageSession {
     this.#visible.clear();
     removeStyle();
     hideBanner();
+    hideNotice();
     this.#port?.disconnect();
     this.#port = null;
   }

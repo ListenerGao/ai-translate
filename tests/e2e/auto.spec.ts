@@ -22,16 +22,24 @@ test.describe("英文文章页自动开启", () => {
     expect(await translatedIds(page)).toContain("p1");
     const tabId = await tabIdOf(background, page.url());
     expect(await background.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe("译");
+    // 自动开启时右下角有提示，可以还原或让这个网站不再自动翻译
+    await expect(page.locator("ait-notice .msg")).toHaveText("已自动翻译这个页面");
   });
 
-  test("2 英文非文章页、中文文章页：不自动开启，模拟服务收不到请求", async ({ context, background, mock, site }) => {
+  test("2 英文非文章页、中文文章页、夹着代码和英文段落的中文文档：不自动开启，模拟服务收不到请求", async ({ context, background, mock, site }) => {
     await settings(background, { autoTranslate: true });
     const page = await context.newPage();
-    await page.goto(`${site}/link-list.html`);
-    await page.waitForTimeout(DETECT_WINDOW_MS);
-    await page.goto(`${site}/zh-article.html`);
-    await page.waitForTimeout(DETECT_WINDOW_MS);
+    for (const name of ["link-list.html", "zh-article.html", "zh-doc-with-code.html"]) {
+      await page.goto(`${site}/${name}`);
+      await page.waitForTimeout(DETECT_WINDOW_MS);
+      await expect(page.locator("ait-notice")).toHaveCount(0);
+    }
     expect(mock.requests).toHaveLength(0);
+    // 手动开启时只翻英文段落，等宽字体的代码行不翻
+    expect(await toggle(background, page)).toBe(true);
+    await settle(mock, page);
+    expect(mock.requests.length).toBeGreaterThan(0);
+    expect(mock.requests.some((r) => r.source.includes("budgetId"))).toBe(false);
   });
 
   test("3 设成「从不翻译」的网站：文章页也不开；手动仍能开", async ({ context, background, mock, site }) => {
@@ -63,6 +71,46 @@ test.describe("英文文章页自动开启", () => {
     await expect.poll(() => mock.requests.length, { timeout: 10_000 }).toBeGreaterThan(0);
     await settle(mock, page);
     expect(await translatedIds(page)).toContain("spa-p1");
+  });
+
+  test("7 自动开启的提示点「这个网站不再自动翻译」：还原页面、记下规则，再打开也不翻", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/long-article.html`);
+    await settle(mock, page);
+    expect(await translatedIds(page)).toContain("p1");
+    await page.locator("ait-notice button", { hasText: "这个网站不再自动翻译" }).click();
+    await expect(page.locator("ait-translation")).toHaveCount(0);
+    await expect(page.locator("ait-notice .msg")).toContainText("以后不再自动翻译");
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: { [HOST]: "never" } });
+    const tabId = await tabIdOf(background, page.url());
+    await expect.poll(() => background.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe("");
+
+    mock.requests.length = 0;
+    await page.reload();
+    await page.waitForTimeout(DETECT_WINDOW_MS);
+    expect(mock.requests).toHaveLength(0);
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+  });
+
+  test("8 自动开启的提示点「还原」：只还原这一页，不记规则", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/long-article.html`);
+    await settle(mock, page);
+    await page.locator("ait-notice button", { hasText: "还原" }).click();
+    await expect(page.locator("ait-translation")).toHaveCount(0);
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+    expect(await background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({});
+  });
+
+  test("9 文档站文章页，收起的侧边目录里有几百个没显示的链接：照样自动开启", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/doc-collapsed-nav.html`);
+    await expect.poll(() => mock.requests.length).toBeGreaterThan(0);
+    await settle(mock, page);
+    expect(await translatedIds(page)).toContain("p1");
   });
 
   test("6 设置里关掉自动翻译：都不自动开启（「总是翻译」的网站也不开）", async ({ context, background, mock, site }) => {

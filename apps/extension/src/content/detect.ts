@@ -8,16 +8,23 @@ export const MIN_LONG_BLOCKS = 5;
 export const MIN_LONG_CHARS = 1500;
 /** 段落里链接文字超过一半就不算正文（搜索结果、链接列表） */
 export const MAX_LINK_SHARE = 0.5;
-/** 全页链接文字占比超过这个就不是文章（首页、目录页）；文章页实测最高 0.34 */
+/** 全页链接文字（只算显示出来的）占比超过这个就不是文章（首页、目录页）；文章页实测最高 0.34 */
 export const MAX_PAGE_LINK_DENSITY = 0.5;
 /** 正文集中度低于这个就不是文章（新闻首页的摘要分散在各张卡片里，实测 0.03）；文章页实测最低 0.29 */
 export const MIN_CONCENTRATION = 0.2;
+/**
+ * 页面上已经是目标语言的文字占到这个比例，就算目标语言的页面，不自动翻译（夹着英文段落、报错信息、接口示例的中文文档）。
+ * 只对中日韩目标语言有效（见 isAlreadyTarget）
+ */
+export const MAX_TARGET_SHARE = 0.2;
 const SAMPLE_CHARS = 2000;
 const MIN_SAMPLE_FOR_DETECTION = 200;
 
 export interface PageDetection {
-  /** 判定的语言：内容检测结果，样本太少时用 <html lang> */
+  /** 判定的语言：已经是目标语言的文字够多时就是目标语言；否则是内容检测结果，样本太少时用 <html lang> */
   language: string;
+  /** 已经是目标语言的文字占全部可翻译文字的比例（按字数） */
+  targetShare: number;
   english: boolean;
   /** 页面声明 og:type=article */
   ogArticle: boolean;
@@ -28,7 +35,7 @@ export interface PageDetection {
   maxBlockChars: number;
   /** 正文集中度：得分最高的容器占全部长段落字数的比例（每段给父元素记全分、祖父元素记半分） */
   concentration: number;
-  /** 全页链接文字占比 */
+  /** 全页链接文字占比，只算显示出来的链接 */
   linkDensity: number;
   article: boolean;
 }
@@ -49,7 +56,10 @@ function linkShare(block: FoundBlock): number {
 }
 
 export async function detectPage(target: string): Promise<PageDetection> {
-  const blocks = new BlockFinder().find(document.body, target);
+  const finder = new BlockFinder();
+  const blocks = finder.find(document.body, target);
+  const otherChars = blocks.reduce((n, b) => n + b.text.length, 0);
+  const targetShare = finder.targetChars === 0 ? 0 : finder.targetChars / (finder.targetChars + otherChars);
   const long = blocks.filter((b) => b.text.length >= LONG_BLOCK_CHARS && linkShare(b) < MAX_LINK_SHARE);
   const longChars = long.reduce((n, b) => n + b.text.length, 0);
   const maxBlockChars = long.reduce((n, b) => Math.max(n, b.text.length), 0);
@@ -62,7 +72,9 @@ export async function detectPage(target: string): Promise<PageDetection> {
   }
   const concentration = longChars === 0 ? 0 : Math.max(0, ...scores.values()) / longChars;
   const squash = (s: string) => s.replace(/\s+/g, "").length;
-  const linkText = [...document.body.querySelectorAll("a")].reduce((n, a) => n + squash(a.innerText ?? ""), 0);
+  // 只算页面上显示出来的链接：收起的菜单、折叠的目录里的链接没显示，innerText 对没显示的元素却会返回全部文字，
+  // 而整页文字（分母）不含它们，算进来占比会虚高甚至超过 1（文档站的侧边目录）
+  const linkText = [...document.body.querySelectorAll("a")].reduce((n, a) => n + (a.checkVisibility() ? squash(a.innerText ?? "") : 0), 0);
   const bodyText = squash(document.body.innerText ?? "");
   const linkDensity = bodyText === 0 ? 0 : linkText / bodyText;
   const ogArticle = document.querySelector('meta[property="og:type"]')?.getAttribute("content")?.trim().toLowerCase() === "article";
@@ -70,7 +82,9 @@ export async function detectPage(target: string): Promise<PageDetection> {
   const sample = (long.length > 0 ? long : blocks).map((b) => b.text).join(" ").slice(0, SAMPLE_CHARS);
   const htmlLang = document.documentElement.lang.trim().toLowerCase();
   let language = htmlLang.split("-")[0] ?? "";
-  if (sample.length >= MIN_SAMPLE_FOR_DETECTION) {
+  // 段落提取已经把目标语言的段落去掉了，剩下的样本只代表「不是目标语言的那部分」：先看整页是不是本来就是目标语言
+  if (targetShare >= MAX_TARGET_SHARE) language = target.toLowerCase().split("-")[0] ?? language;
+  else if (sample.length >= MIN_SAMPLE_FOR_DETECTION) {
     const result = await chrome.i18n.detectLanguage(sample);
     const top = [...result.languages].sort((a, b) => b.percentage - a.percentage)[0];
     if (top !== undefined && top.percentage >= 50) language = top.language.split("-")[0] ?? language;
@@ -80,5 +94,5 @@ export async function detectPage(target: string): Promise<PageDetection> {
   // 链接占比高的不是文章；声明了 og:type=article 的算文章；否则要有足够、集中的正文（单段超长的也算，如整篇用 <br> 分段的随笔）
   const enoughText = longChars >= MIN_LONG_CHARS && (long.length >= MIN_LONG_BLOCKS || maxBlockChars >= MIN_LONG_CHARS);
   const article = linkDensity <= MAX_PAGE_LINK_DENSITY && (ogArticle || (enoughText && concentration >= MIN_CONCENTRATION));
-  return { language, english, ogArticle, longBlocks: long.length, longChars, maxBlockChars, concentration: Math.round(concentration * 100) / 100, linkDensity: Math.round(linkDensity * 100) / 100, article };
+  return { language, targetShare: Math.round(targetShare * 100) / 100, english, ogArticle, longBlocks: long.length, longChars, maxBlockChars, concentration: Math.round(concentration * 100) / 100, linkDensity: Math.round(linkDensity * 100) / 100, article };
 }

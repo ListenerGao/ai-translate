@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>接口文档</title>
+<style>
+  body { font: 16px/1.7 sans-serif; margin: 0 auto; max-width: 760px; padding: 24px; }
+  .code-line { font-family: Menlo, Consolas, monospace; white-space: pre; background: #f6f8fa; }
+</style>
+</head>
+<body>
+<article id="article"><h1>预算接口技术文档</h1></article>
+<script>
+  // 中文技术文档：页面声明的语言不对（lang="en"），代码块不用 pre 标签而是等宽字体的 div（在线文档应用常见），
+  // 正文里还夹着整段英文的报错说明。已经是目标语言的页面，不应自动开启。
+  const article = document.getElementById("article");
+  const add = (tag, text, cls) => {
+    const el = document.createElement(tag);
+    el.textContent = text;
+    if (cls) el.className = cls;
+    article.append(el);
+    return el;
+  };
+  for (let i = 1; i <= 8; i++) {
+    add("p", "第" + i + "节：调用方先申请应用编号，再按下面的格式提交预算分配请求，服务端校验通过后返回分配结果，失败时返回错误码和原因。");
+    add("div", '{ "budgetId": "B' + i + '", "amount": 1200, "currency": "CNY", "items": [{ "sku": "S-100' + i + '", "share": 0.25, "note": "allocate by channel weight" }] }', "code-line");
+    add("p", "The request was rejected because the allocation total does not match the budget amount; check every item share and submit the request again with a new idempotency key (case " + i + ").");
+  }
+</script>
+</body>
+</html>

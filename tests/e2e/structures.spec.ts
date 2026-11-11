@@ -95,3 +95,24 @@ test("11 译文用 #00bb7c 和原文区分：浅色区域、浅灰文字、深�
   expect(await colorOf("#dark-p > ait-translation")).toBe(green);
   expect(await colorOf("#oklch-p > ait-translation")).toBe(green);
 });
+
+test("15 文件名和文件夹名、单独的时间、标识符、排成代码样子的块不翻；旁边的普通文字照常翻", async ({ context, background, mock, site }) => {
+  const page = await context.newPage();
+  await page.goto(`${site}/structures.html`);
+  await toggle(background, page);
+  await settle(mock, page);
+  // 这几段在页面靠下的位置：滚到底，让它们进入翻译范围
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await settle(mock, page);
+
+  const done = await translatedIds(page);
+  for (const id of ["file-dir", "file-name", "file-hash", "file-time", "time-el", "ident", "code-styled"]) {
+    expect(done, id).not.toContain(id);
+  }
+  // 提交说明、夹着时间的句子、文字和地址大小写不同的链接、只是用了等宽字体的段落都照常翻
+  for (const id of ["file-msg", "time-inline", "menu-link", "mono-prose"]) {
+    expect(done, id).toContain(id);
+  }
+  const sources = requestedSources(mock);
+  expect(sources.some((s) => /^docs$|^LICENSE$|93ac637|Nov 1, 2026|2 days ago|pageSize|const total/.test(s))).toBe(false);
+});

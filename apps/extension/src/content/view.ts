@@ -243,3 +243,61 @@ export function hideBanner(): void {
   document.querySelector(BANNER_TAG)?.remove();
 }
 
+
+// ---------- 页面右下角的小提示（Shadow DOM），几秒后自己消失：自动翻译开始时用，带「不再自动翻译」「还原」 ----------
+
+const NOTICE_TAG = "ait-notice";
+const NOTICE_MS = 8000;
+let noticeTimer = 0;
+
+export interface NoticeAction {
+  label: string;
+  run: () => void;
+}
+
+export function showNotice(message: string, actions: NoticeAction[] = []): void {
+  hideNotice();
+  const host = document.createElement(NOTICE_TAG);
+  const root = host.attachShadow({ mode: "open" });
+  root.innerHTML = `
+    <style>
+      .bar { position: fixed; bottom: 20px; right: 20px; z-index: 2147483647; max-width: 500px;
+        display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 10px;
+        background: #1f2533; color: #f3f5f9; font: 13px/1.5 -apple-system, "PingFang SC", system-ui, sans-serif;
+        box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+      .msg { flex: 1; }
+      button { all: unset; cursor: pointer; color: #9cb6ff; white-space: nowrap; }
+      button:hover { text-decoration: underline; }
+      button:focus-visible { outline: 2px solid #9cb6ff; border-radius: 3px; }
+      .close { color: #aab1c0; }
+      .close:hover { text-decoration: none; color: #f3f5f9; }
+    </style>
+    <div class="bar" role="status">
+      <div class="msg"></div>
+      <button class="close" type="button" aria-label="关闭">×</button>
+    </div>`;
+  const bar = root.querySelector(".bar")!;
+  const close = root.querySelector(".close")!;
+  root.querySelector(".msg")!.textContent = message;
+  for (const action of actions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label;
+    button.addEventListener("click", action.run);
+    close.before(button);
+  }
+  close.addEventListener("click", hideNotice);
+  // 鼠标停在上面时不消失
+  const arm = () => {
+    noticeTimer = window.setTimeout(hideNotice, NOTICE_MS);
+  };
+  bar.addEventListener("mouseenter", () => clearTimeout(noticeTimer));
+  bar.addEventListener("mouseleave", arm);
+  document.documentElement.append(host);
+  arm();
+}
+
+export function hideNotice(): void {
+  clearTimeout(noticeTimer);
+  document.querySelector(NOTICE_TAG)?.remove();
+}
