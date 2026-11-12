@@ -37,7 +37,7 @@ App 里带了 Node 22 运行时、打成单文件的 `aitd` 和 `ait`、llama.cp
 5. 构建插件和命令行：`npm run build`
 6. 加载插件：Chrome 打开 `chrome://extensions`，打开右上角「开发者模式」，点「加载已解压的扩展程序」，选 `apps/extension/dist/`
 7. 填密钥：运行 `pbcopy < ~/Library/Application\ Support/ai-translate/api-key` 复制密钥；在插件详情里打开「扩展程序选项」，粘贴到「密钥」，点「保存」，再点「测试连接」
-8. 安装命令行（可选）：`scripts/install-cli.sh install`，装到 `~/.local/bin/ait`（固定用 Node 22，不受终端默认 Node 版本影响）。新开终端运行 `ait status`，显示「aitd 0.2.3 正常」就装好了
+8. 安装命令行（可选）：`scripts/install-cli.sh install`，装到 `~/.local/bin/ait`（固定用 Node 22，不受终端默认 Node 版本影响）。新开终端运行 `ait status`，显示「aitd 0.2.4 正常」就装好了
 9. 安装桌面应用（可选）：`scripts/install-desktop.sh install`，编译后装到 `~/Applications/AI Translate.app` 并启动，Dock 和菜单栏出现蓝底白色「中→A」图标。第一次安装会生成一张只给这个 App 签名的本机证书，放在单独的钥匙串文件 `~/Library/Application Support/ai-translate/signing/` 里，登录钥匙串不动；身份固定，以后更新 App 不用重新授权。第一次打开时默认登记「登录时自动打开」，可在 App 设置里关。要用 `⌥D` 划词，第一次按时按提示在「系统设置 → 隐私与安全性 → 辅助功能」里打开 AI Translate（要读别的 App 里选中的文字），打开后不用重启
 
 卸载：`scripts/aitd-service.sh uninstall` 停掉开机自启；`scripts/install-cli.sh uninstall` 删掉 `ait`；卸载桌面应用前先在它的设置里关掉「登录时自动打开」，再运行 `scripts/install-desktop.sh uninstall`；在 `chrome://extensions` 移除插件。
