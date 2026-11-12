@@ -128,10 +128,14 @@ async function changeLanguages(): Promise<void> {
 }
 
 async function setRule(rule: SiteRule | "auto"): Promise<void> {
-  const siteRules = { ...(await loadSettings()).siteRules };
+  const settings = await loadSettings();
+  const siteRules = { ...settings.siteRules };
   if (rule === "auto") delete siteRules[host];
   else siteRules[host] = rule;
-  await saveSettings({ siteRules });
+  // 自己定了规则，之前记的使用习惯作废，从头算
+  const siteHabits = { ...settings.siteHabits };
+  delete siteHabits[host];
+  await saveSettings({ siteRules, siteHabits });
   // 当前页面跟着规则走：选「总是翻译」就开启，选「从不翻译」就还原
   if ((rule === "always" && !active) || (rule === "never" && active)) await toggle();
 }

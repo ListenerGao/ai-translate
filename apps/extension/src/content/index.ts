@@ -65,8 +65,12 @@ chrome.runtime.onMessage.addListener((msg: TabCommand, _sender, sendResponse: (s
     return true;
   }
   if (msg.type === "toggle") {
-    const done = session.active ? Promise.resolve(session.stop()) : session.start();
-    void done.then(reply);
+    const wasActive = session.active;
+    const done = wasActive ? Promise.resolve(session.stop()) : session.start();
+    void done.then(() => {
+      void (wasActive ? auto.manualOff() : auto.manualOn());
+      reply();
+    });
     return true;
   }
   if (msg.type === "set-languages") {

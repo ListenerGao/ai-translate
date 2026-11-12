@@ -244,7 +244,7 @@ export function hideBanner(): void {
 }
 
 
-// ---------- 页面右下角的小提示（Shadow DOM），几秒后自己消失：自动翻译开始时用，带「不再自动翻译」「还原」 ----------
+// ---------- 页面右下角的小提示（Shadow DOM），几秒后自己消失：自动翻译开始时用，带「不再自动翻译」「还原」；拿不准的英文页面用它问一句 ----------
 
 const NOTICE_TAG = "ait-notice";
 const NOTICE_MS = 8000;
@@ -255,7 +255,8 @@ export interface NoticeAction {
   run: () => void;
 }
 
-export function showNotice(message: string, actions: NoticeAction[] = []): void {
+/** onDismiss：提示没被理会（点了 × 或到时间自己消失）时调用；点按钮、被别的提示顶掉都不算 */
+export function showNotice(message: string, actions: NoticeAction[] = [], onDismiss?: () => void): void {
   hideNotice();
   const host = document.createElement(NOTICE_TAG);
   const root = host.attachShadow({ mode: "open" });
@@ -286,10 +287,14 @@ export function showNotice(message: string, actions: NoticeAction[] = []): void 
     button.addEventListener("click", action.run);
     close.before(button);
   }
-  close.addEventListener("click", hideNotice);
+  const dismiss = () => {
+    hideNotice();
+    onDismiss?.();
+  };
+  close.addEventListener("click", dismiss);
   // 鼠标停在上面时不消失
   const arm = () => {
-    noticeTimer = window.setTimeout(hideNotice, NOTICE_MS);
+    noticeTimer = window.setTimeout(dismiss, NOTICE_MS);
   };
   bar.addEventListener("mouseenter", () => clearTimeout(noticeTimer));
   bar.addEventListener("mouseleave", arm);

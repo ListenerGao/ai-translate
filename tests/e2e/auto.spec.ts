@@ -102,6 +102,7 @@ test.describe("英文文章页自动开启", () => {
     await expect(page.locator("ait-translation")).toHaveCount(0);
     await expect(page.locator("ait-notice")).toHaveCount(0);
     expect(await background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({});
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteHabits"))).toEqual({ siteHabits: { [HOST]: { off: 1 } } });
   });
 
   test("9 文档站文章页，收起的侧边目录里有几百个没显示的链接：照样自动开启", async ({ context, background, mock, site }) => {
@@ -111,6 +112,90 @@ test.describe("英文文章页自动开启", () => {
     await expect.poll(() => mock.requests.length).toBeGreaterThan(0);
     await settle(mock, page);
     expect(await translatedIds(page)).toContain("p1");
+  });
+
+  test("10 英文短文档够不上文章：不自动翻译，但问一句；点「翻译」就翻这一页，记一次手动开启", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/short-doc.html`);
+    await expect(page.locator("ait-notice .msg")).toHaveText("这个页面是英文，要翻译吗？");
+    expect(mock.requests).toHaveLength(0);
+    await page.locator("ait-notice button", { hasText: /^翻译$/ }).click();
+    await settle(mock, page);
+    expect(await translatedIds(page)).toContain("p1");
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+    const tabId = await tabIdOf(background, page.url());
+    await expect.poll(() => background.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe("译");
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get(["siteRules", "siteHabits"]))).toEqual({ siteHabits: { [HOST]: { on: 1, asked: 0 } } });
+  });
+
+  test("11 询问连续两次没理会（点 ×）：这个网站不再问", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    for (let i = 1; i <= 2; i++) {
+      await page.goto(`${site}/short-doc.html`);
+      await page.locator("ait-notice .close").click();
+      await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteHabits"))).toEqual({ siteHabits: { [HOST]: { asked: i } } });
+    }
+    await page.goto(`${site}/short-doc.html`);
+    await page.waitForTimeout(DETECT_WINDOW_MS);
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  test("12 询问点「这个网站总是翻译」：记下规则并翻译，再打开直接翻", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/short-doc.html`);
+    await page.locator("ait-notice button", { hasText: "这个网站总是翻译" }).click();
+    await settle(mock, page);
+    expect(await translatedIds(page)).toContain("p1");
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: { [HOST]: "always" } });
+    mock.requests.length = 0;
+    await page.goto(`${site}/link-list.html`);
+    await expect.poll(() => mock.requests.length).toBeGreaterThan(0);
+  });
+
+  test("13 同一网站手动开了两次：设成「总是翻译」并提示；同一页反复开关只记一次；可以撤回", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/link-list.html`);
+    expect(await toggle(background, page)).toBe(true);
+    expect(await toggle(background, page)).toBe(false);
+    expect(await toggle(background, page)).toBe(true);
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get(["siteRules", "siteHabits"]))).toEqual({ siteHabits: { [HOST]: { on: 1, asked: 0 } } });
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+
+    await page.goto(`${site}/zh-doc-with-code.html`);
+    expect(await toggle(background, page)).toBe(true);
+    await expect(page.locator("ait-notice .msg")).toContainText("以后会自动翻译");
+    expect(await background.evaluate(() => chrome.storage.local.get(["siteRules", "siteHabits"]))).toEqual({ siteRules: { [HOST]: "always" }, siteHabits: {} });
+    await page.locator("ait-notice button", { hasText: "撤回" }).click();
+    await expect(page.locator("ait-notice")).toHaveCount(0);
+    expect(await background.evaluate(() => chrome.storage.local.get("siteRules"))).toEqual({ siteRules: {} });
+  });
+
+  test("14 自动翻译被还原两次：设成「从不翻译」并提示，再打开不翻也不问", async ({ context, background, mock, site }) => {
+    await settings(background, { autoTranslate: true });
+    const page = await context.newPage();
+    await page.goto(`${site}/long-article.html`);
+    await settle(mock, page);
+    await page.locator("ait-notice button", { hasText: "还原" }).click();
+    await expect.poll(() => background.evaluate(() => chrome.storage.local.get("siteHabits"))).toEqual({ siteHabits: { [HOST]: { off: 1 } } });
+
+    // 第二次用弹窗 / 快捷键的开关还原，也算
+    await page.reload();
+    await settle(mock, page);
+    expect(await translatedIds(page)).toContain("p1");
+    expect(await toggle(background, page)).toBe(false);
+    await expect(page.locator("ait-notice .msg")).toContainText("以后不再自动翻译");
+    expect(await background.evaluate(() => chrome.storage.local.get(["siteRules", "siteHabits"]))).toEqual({ siteRules: { [HOST]: "never" }, siteHabits: {} });
+
+    mock.requests.length = 0;
+    await page.reload();
+    await page.waitForTimeout(DETECT_WINDOW_MS);
+    expect(mock.requests).toHaveLength(0);
+    await expect(page.locator("ait-notice")).toHaveCount(0);
   });
 
   test("6 设置里关掉自动翻译：都不自动开启（「总是翻译」的网站也不开）", async ({ context, background, mock, site }) => {

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Short doc</title>
+<style>body { font: 16px/1.5 sans-serif; margin: 0 auto; max-width: 720px; padding: 24px; }</style>
+</head>
+<body>
+<!-- 英文短文档：三段正文约 800 字，够不上「文章」的门槛（5 段、1500 字），不自动翻译，但会问一句 -->
+<h1>Getting started</h1>
+<p id="p1">This short guide explains how the local translation service starts, how it finds the model file on your disk, and what happens when the model is not there yet. Everything runs on your own machine, so no text ever leaves the computer while you read a page.</p>
+<p id="p2">When the service receives its first request it launches the model process in the background and waits until the model reports that it is ready. Later requests reuse the same process, which keeps the response time short even for long pages with many paragraphs.</p>
+<p id="p3">If something goes wrong, the toolbar popup shows the current state of the service together with a short hint about what to check next. Most problems come from a missing model file or from another program that already uses the same local port.</p>
+</body>
+</html>

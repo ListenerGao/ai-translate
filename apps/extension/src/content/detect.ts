@@ -17,6 +17,8 @@ export const MIN_CONCENTRATION = 0.2;
  * 只对中日韩目标语言有效（见 isAlreadyTarget）
  */
 export const MAX_TARGET_SHARE = 0.2;
+/** 英文页面够不上文章、但长段落加起来有这么多字，就问一句要不要翻译（短文档、正文不集中的页面） */
+export const ASK_MIN_LONG_CHARS = 500;
 const SAMPLE_CHARS = 2000;
 const MIN_SAMPLE_FOR_DETECTION = 200;
 

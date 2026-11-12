@@ -5,6 +5,16 @@ export type DisplayMode = "bilingual" | "translation-only";
 /** 按网站设置：总是翻译 / 从不翻译；没有记录就是「自动」（按检测结果） */
 export type SiteRule = "always" | "never";
 
+/** 按网站记下的使用习惯，用来自动学出网站规则；有了规则就清掉 */
+export interface SiteHabit {
+  /** 没有规则时手动开启翻译的次数（每个页面只记一次） */
+  on?: number;
+  /** 自动翻译后被还原的次数（每个页面只记一次） */
+  off?: number;
+  /** 「要翻译吗」的询问连续没被理会的次数 */
+  asked?: number;
+}
+
 export interface Settings {
   /** 模型服务地址，只允许本机 */
   endpoint: string;
@@ -21,6 +31,8 @@ export interface Settings {
   autoTranslate: boolean;
   /** 域名 → 规则 */
   siteRules: Record<string, SiteRule>;
+  /** 域名 → 使用习惯 */
+  siteHabits: Record<string, SiteHabit>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   selectionEnabled: true,
   autoTranslate: true,
   siteRules: {},
+  siteHabits: {},
 };
 
 export async function loadSettings(): Promise<Settings> {
